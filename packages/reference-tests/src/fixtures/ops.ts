@@ -4,10 +4,17 @@
  * Authorities cite OPS-001 (+ Core/ENC/SER as exercised). No PERSIST-001.
  */
 import { OpsError, referenceAppMarker } from "@sciros/reference-app";
+import { EvidenceValidationError } from "@sciros/core";
 import { PersistenceError } from "@sciros/persistence";
 import { stableStringify } from "@sciros/serialization";
 import type { ReferenceFixture } from "../types.js";
-import { claimInput, makeOps, OPS_AT, OPS_HUMAN } from "./ops-support.js";
+import {
+  claimInput,
+  evidenceInput,
+  makeOps,
+  OPS_AT,
+  OPS_HUMAN,
+} from "./ops-support.js";
 
 export const opsFixtures: readonly ReferenceFixture[] = Object.freeze([
   {
@@ -552,6 +559,410 @@ export const opsFixtures: readonly ReferenceFixture[] = Object.freeze([
       });
       ops.bindSession(wsA, session);
       ops.bindSession(wsB, session);
+    },
+  },
+  {
+    fixture_id: "REF-OPS-022",
+    title: "Evidence draft registration via OPS (Core → ENC → Persistence.create)",
+    scenario: "valid",
+    authorities: ["OPS-001", "SCI-002", "ENC-001"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-022");
+      const evidenceId = "evidence:ref-ops-022";
+      const { evidence, unit, entity } = await ops.registerEvidenceUnit(
+        evidenceInput(evidenceId),
+      );
+      check.equal("evidence id", evidence.evidence_id, evidenceId);
+      check.equal("record_state", evidence.record_state, "draft");
+      check.equal("unit_kind", unit.envelope.unit_kind, "EvidenceUnit");
+      check.equal("entity identity", entity.identity, evidenceId);
+      check.equal("entity_kind", entity.entity_kind, "CanonicalUnit");
+      const stored = await ops.getEvidenceUnit(evidenceId);
+      check.equal("retrieved identity", stored.identity, evidenceId);
+    },
+  },
+  {
+    fixture_id: "REF-OPS-023",
+    title: "Evidence Persistence.create-once rejection propagates ALREADY_EXISTS",
+    scenario: "invalid",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "failure", failure_code: "ALREADY_EXISTS" },
+    async execute() {
+      const ops = makeOps("persist-sess:ref-ops-023");
+      const evidenceId = "evidence:ref-ops-023";
+      await ops.registerEvidenceUnit(evidenceInput(evidenceId));
+      await ops.registerEvidenceUnit(evidenceInput(evidenceId));
+    },
+  },
+  {
+    fixture_id: "REF-OPS-024",
+    title: "Invalid Evidence rejected with EvidenceValidationError identity",
+    scenario: "valid",
+    authorities: ["OPS-001", "SCI-002"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-024");
+      try {
+        await ops.registerEvidenceUnit(
+          evidenceInput("evidence:ref-ops-024", {
+            source: {
+              source_class: "laboratory",
+              source_locator: "   ",
+              source_state: "declared",
+            },
+          }),
+        );
+        check.ok("should have thrown", false);
+      } catch (e) {
+        check.ok("EvidenceValidationError", e instanceof EvidenceValidationError);
+        check.ok("not OpsError", !(e instanceof OpsError));
+        check.ok("not PersistenceError", !(e instanceof PersistenceError));
+      }
+    },
+  },
+  {
+    fixture_id: "REF-OPS-025",
+    title: "Orphan session Evidence membership (M5)",
+    scenario: "valid",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-025");
+      const session = ops.openSession({
+        research_session_id: "research:session:ref-ops-025",
+      });
+      check.equal("orphan", session.research_workspace_id, undefined);
+      const evidenceId = "evidence:ref-ops-025";
+      await ops.registerEvidenceUnit(evidenceInput(evidenceId));
+      ops.registerMember(session, {
+        entity_kind: "CanonicalUnit",
+        identity: evidenceId,
+        unit_kind: "EvidenceUnit",
+      });
+      check.equal("session members", session.members().length, 1);
+      check.equal("member unit_kind", session.members()[0]?.unit_kind, "EvidenceUnit");
+    },
+  },
+  {
+    fixture_id: "REF-OPS-026",
+    title: "Bound session Evidence membership upserts workspace (M3)",
+    scenario: "valid",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-026");
+      const ws = ops.openWorkspace({
+        research_workspace_id: "workspace:ref-ops-026",
+      });
+      const session = ops.openSession({
+        research_session_id: "research:session:ref-ops-026",
+      });
+      ops.bindSession(ws, session);
+      const evidenceId = "evidence:ref-ops-026";
+      await ops.registerEvidenceUnit(evidenceInput(evidenceId));
+      ops.registerMember(session, {
+        entity_kind: "CanonicalUnit",
+        identity: evidenceId,
+        unit_kind: "EvidenceUnit",
+      });
+      check.equal("workspace members", ws.members().length, 1);
+      check.equal("workspace member id", ws.members()[0]?.identity, evidenceId);
+    },
+  },
+  {
+    fixture_id: "REF-OPS-027",
+    title: "Evidence timeline + ops.evidence_unit_registered event",
+    scenario: "valid",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-027");
+      const session = ops.openSession({
+        research_session_id: "research:session:ref-ops-027",
+      });
+      const evidenceId = "evidence:ref-ops-027";
+      await ops.registerEvidenceUnit(evidenceInput(evidenceId));
+      await ops.appendResearchEvent(evidenceId, {
+        event_id: "event:ref-ops-027",
+        parent_identity: evidenceId,
+        parent_class: "Evidence",
+        event_type: "ops.evidence_unit_registered",
+        ordinal: 0,
+        at: OPS_AT,
+        authority_agent: OPS_HUMAN,
+        payload: { source: "ref-ops" },
+      });
+      ops.registerMember(session, {
+        entity_kind: "CanonicalUnit",
+        identity: evidenceId,
+        unit_kind: "EvidenceUnit",
+      });
+      const timeline = await ops.timeline(session);
+      check.equal("timeline length", timeline.length, 1);
+      check.equal("event type", timeline[0]?.event_type, "ops.evidence_unit_registered");
+    },
+  },
+  {
+    fixture_id: "REF-OPS-028",
+    title: "ResearchSnapshot frozen field-set with Evidence member_refs",
+    scenario: "valid",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-028");
+      const session = ops.openSession({
+        research_session_id: "research:session:ref-ops-028",
+      });
+      const evidenceId = "evidence:ref-ops-028";
+      await ops.registerEvidenceUnit(evidenceInput(evidenceId));
+      ops.registerMember(session, {
+        entity_kind: "CanonicalUnit",
+        identity: evidenceId,
+        unit_kind: "EvidenceUnit",
+      });
+      const view = await ops.snapshotView(session);
+      check.equal(
+        "keys",
+        Object.keys(view).sort().join(","),
+        "member_refs,persistence_snapshot,research_session_id",
+      );
+      check.equal("no workspace field", "research_workspace_id" in view, false);
+      check.equal("member count", view.member_refs.length, 1);
+      check.equal("member identity", view.member_refs[0]?.identity, evidenceId);
+    },
+  },
+  {
+    fixture_id: "REF-OPS-029",
+    title: "WorkspaceSnapshot includes Evidence membership",
+    scenario: "valid",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-029");
+      const ws = ops.openWorkspace({
+        research_workspace_id: "workspace:ref-ops-029",
+      });
+      const session = ops.openSession({
+        research_session_id: "research:session:ref-ops-029",
+      });
+      ops.bindSession(ws, session);
+      const evidenceId = "evidence:ref-ops-029";
+      await ops.registerEvidenceUnit(evidenceInput(evidenceId));
+      ops.registerMember(session, {
+        entity_kind: "CanonicalUnit",
+        identity: evidenceId,
+        unit_kind: "EvidenceUnit",
+      });
+      const snap = await ops.workspaceSnapshotView(ws);
+      check.equal("workspace id", snap.research_workspace_id, "workspace:ref-ops-029");
+      check.equal("member count", snap.member_refs.length, 1);
+      check.equal("bound session", snap.bound_session_ids[0], session.research_session_id);
+    },
+  },
+  {
+    fixture_id: "REF-OPS-030",
+    title: "Evidence SER export is deterministic on double-run",
+    scenario: "valid",
+    authorities: ["OPS-001", "SER-JSON-001"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      async function run() {
+        const ops = makeOps("persist-sess:ref-ops-030");
+        const evidenceId = "evidence:ref-ops-030";
+        await ops.registerEvidenceUnit(evidenceInput(evidenceId));
+        return ops.exportEvidenceUnit(evidenceId);
+      }
+      const a = await run();
+      const b = await run();
+      check.equal("deterministic export", a, b);
+      check.ok("non-empty", a.length > 0);
+    },
+  },
+  {
+    fixture_id: "REF-OPS-031",
+    title: "Membership does not create bears_on or supported_by edges",
+    scenario: "valid",
+    authorities: ["OPS-001", "SCI-001", "SCI-002"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-031");
+      const claimId = "claim:ref-ops-031";
+      const evidenceId = "evidence:ref-ops-031";
+      const { claim } = await ops.registerClaimUnit(claimInput(claimId));
+      const { evidence } = await ops.registerEvidenceUnit(
+        evidenceInput(evidenceId, { bears_on: [claimId] }),
+      );
+      const session = ops.openSession({
+        research_session_id: "research:session:ref-ops-031",
+      });
+      ops.registerMember(session, {
+        entity_kind: "CanonicalUnit",
+        identity: claimId,
+        unit_kind: "ClaimUnit",
+      });
+      ops.registerMember(session, {
+        entity_kind: "CanonicalUnit",
+        identity: evidenceId,
+        unit_kind: "EvidenceUnit",
+      });
+      check.equal("bears_on preserved", evidence.bears_on?.[0], claimId);
+      check.equal(
+        "supported_by not invented",
+        claim.supported_by === undefined || claim.supported_by.length === 0,
+        true,
+      );
+      check.equal("session has both members", session.members().length, 2);
+    },
+  },
+  {
+    fixture_id: "REF-OPS-032",
+    title: "bears_on and supported_by remain independent under OPS (SSR-5)",
+    scenario: "valid",
+    authorities: ["OPS-001", "SCI-001", "SCI-002"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-032");
+      const claimId = "claim:ref-ops-032";
+      const evidenceId = "evidence:ref-ops-032";
+      const { claim } = await ops.registerClaimUnit(claimInput(claimId));
+      const { evidence } = await ops.registerEvidenceUnit(
+        evidenceInput(evidenceId, { bears_on: [claimId] }),
+      );
+      check.equal("evidence bears_on", evidence.bears_on?.[0], claimId);
+      check.ok(
+        "claim supported_by empty",
+        claim.supported_by === undefined || claim.supported_by.length === 0,
+      );
+      // Explicit: membership alone never writes Claim.supported_by
+      const session = ops.openSession({
+        research_session_id: "research:session:ref-ops-032",
+      });
+      ops.registerMember(session, {
+        entity_kind: "CanonicalUnit",
+        identity: evidenceId,
+        unit_kind: "EvidenceUnit",
+      });
+      const claimEntity = await ops.getClaimUnit(claimId);
+      const payload = claimEntity.payload as {
+        content?: { supported_by?: readonly string[] };
+      };
+      const storedSupported = payload.content?.supported_by ?? [];
+      check.equal("persisted claim has no supported_by sync", storedSupported.length, 0);
+    },
+  },
+  {
+    fixture_id: "REF-OPS-033",
+    title: "Pre-persist Human registration then create-once",
+    scenario: "valid",
+    authorities: ["OPS-001", "SCI-002"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-033");
+      const evidenceId = "evidence:ref-ops-033";
+      const { evidence, unit } = await ops.registerEvidenceUnit(
+        evidenceInput(evidenceId),
+        {
+          transition: {
+            to: "registered",
+            authority_agent: OPS_HUMAN,
+            reason: "human registration before persist",
+            decision_ref: "decision:ref-ops-033",
+            at: OPS_AT,
+            event_id: "erte:ref-ops-033",
+          },
+        },
+      );
+      check.equal("registered", evidence.record_state, "registered");
+      check.equal("unit_kind", unit.envelope.unit_kind, "EvidenceUnit");
+      const stored = await ops.getEvidenceUnit(evidenceId);
+      check.equal("stored identity", stored.identity, evidenceId);
+    },
+  },
+  {
+    fixture_id: "REF-OPS-034",
+    title: "AI registration via OPS pre-persist transition is rejected by Core",
+    scenario: "valid",
+    authorities: ["OPS-001", "SCI-002"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-034");
+      try {
+        await ops.registerEvidenceUnit(evidenceInput("evidence:ref-ops-034"), {
+          transition: {
+            to: "registered",
+            authority_agent: "ai:agent-ref-ops-034",
+            reason: "ai attempt",
+            decision_ref: "decision:ref-ops-034",
+            at: OPS_AT,
+            event_id: "erte:ref-ops-034",
+          },
+        });
+        check.ok("should have thrown", false);
+      } catch (e) {
+        check.ok("EvidenceValidationError", e instanceof EvidenceValidationError);
+        check.ok("not OpsError", !(e instanceof OpsError));
+      }
+    },
+  },
+  {
+    fixture_id: "REF-OPS-035",
+    title: "Missing Evidence get propagates PersistenceError",
+    scenario: "invalid",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "failure", failure_code: "NOT_FOUND" },
+    async execute() {
+      const ops = makeOps("persist-sess:ref-ops-035");
+      await ops.getEvidenceUnit("evidence:ref-ops-035-missing");
+    },
+  },
+  {
+    fixture_id: "REF-OPS-036",
+    title: "Full Evidence OPS double-run determinism (export+snapshot+timeline)",
+    scenario: "valid",
+    authorities: ["OPS-001", "SER-JSON-001"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      async function run() {
+        const ops = makeOps("persist-sess:ref-ops-036");
+        const session = ops.openSession({
+          research_session_id: "research:session:ref-ops-036",
+        });
+        const evidenceId = "evidence:ref-ops-036";
+        await ops.registerEvidenceUnit(evidenceInput(evidenceId));
+        await ops.appendResearchEvent(evidenceId, {
+          event_id: "event:ref-ops-036",
+          parent_identity: evidenceId,
+          parent_class: "Evidence",
+          event_type: "ops.evidence_unit_registered",
+          ordinal: 0,
+          at: OPS_AT,
+          authority_agent: OPS_HUMAN,
+          payload: { source: "ref-ops" },
+        });
+        ops.registerMember(session, {
+          entity_kind: "CanonicalUnit",
+          identity: evidenceId,
+          unit_kind: "EvidenceUnit",
+        });
+        const snap = await ops.snapshotView(session);
+        const timeline = await ops.timeline(session);
+        const json = await ops.exportEvidenceUnit(evidenceId);
+        return stableStringify({
+          identity: evidenceId,
+          members: snap.member_refs,
+          session: snap.research_session_id,
+          timeline: timeline.map((t) => ({
+            event_id: t.event_id,
+            event_type: t.event_type,
+            ordinal: t.ordinal,
+          })),
+          json,
+        });
+      }
+      const a = await run();
+      const b = await run();
+      check.equal("deterministic full workflow", a, b);
     },
   },
 ]);

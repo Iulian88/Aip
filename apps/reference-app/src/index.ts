@@ -1,9 +1,9 @@
 /**
  * @sciros/reference-app — Research Operations / OPS shell.
- * Sprint 016 Claim vertical slice + Sprint 018 ResearchWorkspace Foundation.
+ * Sprint 016 Claim + Sprint 018 Workspace + Sprint 019 Evidence Operations.
  * Orchestrates Core → ENC → Persistence → SER. Does NOT author scientific meaning.
  *
- * SPEC-016A · SPEC-018 v0.2.0-PATCHED (Workspace Foundation EXEC)
+ * SPEC-016A · SPEC-018 v0.2.0-PATCHED · SPEC-019 Evidence Operations
  */
 
 export { OpsError, isOpsError, type OpsErrorCode } from "./errors/ops-error.js";
@@ -25,6 +25,8 @@ export {
   createResearchOperations,
   type ResearchOperationsDeps,
   type RegisterClaimUnitResult,
+  type RegisterEvidenceUnitResult,
+  type RegisterEvidenceUnitOptions,
 } from "./operations/research-operations.js";
 
 export {
@@ -38,7 +40,7 @@ export {
 
 export interface ReferenceAppMarker {
   readonly packageId: "@sciros/reference-app";
-  readonly sprint: 18;
+  readonly sprint: 19;
   readonly duplicatesProcessorLogic: false;
   readonly researchSessionPersisted: false;
   readonly researchWorkspacePersisted: false;
@@ -48,7 +50,7 @@ export interface ReferenceAppMarker {
 
 export const referenceAppMarker: ReferenceAppMarker = {
   packageId: "@sciros/reference-app",
-  sprint: 18,
+  sprint: 19,
   duplicatesProcessorLogic: false,
   researchSessionPersisted: false,
   researchWorkspacePersisted: false,

@@ -1,0 +1,86 @@
+{
+  "sprint": 19,
+  "scope": "Evidence Operations",
+  "spec": "SPEC-019 v0.1.0-DRAFT",
+  "audit": {
+    "architecture_audit": "SPEC-019 APPROVED WITH OBSERVATIONS",
+    "code_audit": "CODE-AUDIT-019 VERIFIED WITH OBSERVATIONS",
+    "required_patches": 0
+  },
+  "execution": {
+    "status": "EXECUTED AND VERIFIED",
+    "path": "EvidenceFactory.createDraft → optional TransitionService → ENC → Persistence.create → membership → timeline/snapshot → SER"
+  },
+  "architecture": {
+    "chain": "OPS → REF-OPS → ReferenceRunner → ReferenceReport → ConformanceEngine(profile) → ConformanceReport(profile_id) → CertificationEngine → Certificate",
+    "conformance_engines": 1,
+    "certification_engines": 1,
+    "evidence_authority": "Scientific Core (SCI-002)",
+    "ops_role": "orchestration / projection only",
+    "bears_on_vs_supported_by": "independent (SCI-001 SSR-5); membership is neither"
+  },
+  "corpora": {
+    "REF_CORPUS_SCI": 44,
+    "REF_CORPUS_OPS": 36,
+    "REF_CORPUS_FULL": 80,
+    "sci_pass": 44,
+    "ops_pass": 36,
+    "full_pass": 80,
+    "evidence_ops_fixtures": "REF-OPS-022…REF-OPS-036"
+  },
+  "sci": {
+    "profile_id": "CONF-001@1.0.0",
+    "corpus": "REF-CORPUS-SCI",
+    "conformance_overall": "COMPLIANT",
+    "certification_decision": "CERTIFIED",
+    "certificate_id": "cert:sess-sprint-019-formal-sci:sciros-reference-test-suite:certified",
+    "scope": [
+      "SCI-000",
+      "SCI-001",
+      "SCI-002",
+      "SCI-003",
+      "SCI-004",
+      "SCI-005",
+      "SCI-006",
+      "ENC-001",
+      "SER-001",
+      "SER-JSON-001",
+      "RPR-001",
+      "ADR-0006",
+      "CONF-001"
+    ]
+  },
+  "ops": {
+    "profile_id": "CONF-001@1.1.0-OPS",
+    "corpus": "REF-CORPUS-FULL",
+    "ops_authoring_corpus": "REF-CORPUS-OPS",
+    "conformance_overall": "COMPLIANT",
+    "certification_decision": "CERTIFIED",
+    "certificate_id": "cert:sess-sprint-019-formal-ops:sciros-full-reference-corpus:certified",
+    "scope": [
+      "SCI-000",
+      "SCI-001",
+      "SCI-002",
+      "SCI-003",
+      "SCI-004",
+      "SCI-005",
+      "SCI-006",
+      "ENC-001",
+      "SER-001",
+      "SER-JSON-001",
+      "RPR-001",
+      "ADR-0006",
+      "CONF-001",
+      "OPS-001"
+    ]
+  },
+  "observations_non_blocking": [
+    "Raw git diff inflation from CRLF rewrite on research-operations.ts (CODE-AUDIT-019)",
+    "Formal cert artifacts emitted at closure (CODE-AUDIT-019 pre-closure observation)",
+    "Public bindWorkspace footgun carried from CODE-AUDIT-020 (unchanged)",
+    "bears_on / supported_by independence verified; no auto-sync"
+  ],
+  "formal_status": "CERTIFIED",
+  "closure": "COMPLETE",
+  "note": "Engine CertificationDecision remains CERTIFIED; non-blocking audit observations recorded separately (enum unchanged)."
+}

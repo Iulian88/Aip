@@ -1,9 +1,18 @@
 /**
- * ResearchOperations — OPS orchestration façade (SPEC-016A / SPEC-018 Foundation).
+ * ResearchOperations — OPS orchestration façade (SPEC-016A / SPEC-018 / SPEC-019).
  * Orchestrates Core → ENC → Persistence → SER. Does not author scientific meaning.
  */
 
-import { ClaimFactory, type CreateClaimInput, type Claim } from "@sciros/core";
+import {
+  ClaimFactory,
+  EvidenceFactory,
+  EvidenceTransitionService,
+  type Claim,
+  type CreateClaimInput,
+  type CreateEvidenceInput,
+  type Evidence,
+  type EvidenceRecordTransitionInput,
+} from "@sciros/core";
 import { CanonicalEncoder, type CanonicalUnit } from "@sciros/encoding";
 import {
   entityFromCanonicalUnit,
@@ -32,6 +41,8 @@ import type {
 
 export interface ResearchOperationsDeps {
   readonly claimFactory: ClaimFactory;
+  readonly evidenceFactory: EvidenceFactory;
+  readonly evidenceTransitions: EvidenceTransitionService;
   readonly encoder: CanonicalEncoder;
   readonly jsonEncoder: JsonEncoder;
   /** Infrastructure PersistenceSession — distinct from ResearchSession. */
@@ -44,8 +55,21 @@ export interface RegisterClaimUnitResult {
   readonly entity: PersistenceEntity;
 }
 
+export interface RegisterEvidenceUnitResult {
+  readonly evidence: Evidence;
+  readonly unit: CanonicalUnit;
+  readonly entity: PersistenceEntity;
+}
+
+/** Optional in-memory Core transition applied before ENC assemble / Persistence.create. */
+export interface RegisterEvidenceUnitOptions {
+  readonly transition?: EvidenceRecordTransitionInput;
+}
+
 export class ResearchOperations {
   private readonly claims: ClaimFactory;
+  private readonly evidenceFactory: EvidenceFactory;
+  private readonly evidenceTransitions: EvidenceTransitionService;
   private readonly encoder: CanonicalEncoder;
   private readonly jsonEncoder: JsonEncoder;
   private readonly persistenceSession: PersistenceSession;
@@ -54,6 +78,8 @@ export class ResearchOperations {
 
   constructor(deps: ResearchOperationsDeps) {
     this.claims = deps.claimFactory;
+    this.evidenceFactory = deps.evidenceFactory;
+    this.evidenceTransitions = deps.evidenceTransitions;
     this.encoder = deps.encoder;
     this.jsonEncoder = deps.jsonEncoder;
     this.persistenceSession = deps.persistenceSession;
@@ -114,6 +140,25 @@ export class ResearchOperations {
   }
 
   /**
+   * Core Evidence createDraft → optional TransitionService → ENC assemble → Persistence create.
+   * Does NOT append events or register membership (call those separately).
+   * Does NOT sync bears_on ↔ Claim.supported_by. Lower-layer errors propagate unchanged.
+   */
+  async registerEvidenceUnit(
+    input: CreateEvidenceInput,
+    options?: RegisterEvidenceUnitOptions,
+  ): Promise<RegisterEvidenceUnitResult> {
+    let evidence = this.evidenceFactory.createDraft(input);
+    if (options?.transition !== undefined) {
+      evidence = this.evidenceTransitions.transition(evidence, options.transition);
+    }
+    const unit = await this.encoder.assemble(evidence);
+    const entity = entityFromCanonicalUnit(unit);
+    const stored = await this.repository.create(entity);
+    return { evidence, unit, entity: stored };
+  }
+
+  /**
    * Explicit Persistence.appendEvent — sole event journal (SPEC-016A P-016-004).
    * Caller must supply deterministic event_id. Lower-layer errors propagate unchanged.
    */
@@ -159,6 +204,12 @@ export class ResearchOperations {
 
   async getClaimUnit(identity: string): Promise<PersistenceEntity> {
     return this.repository.get(identity, "CanonicalUnit", { unit_kind: "ClaimUnit" });
+  }
+
+  async getEvidenceUnit(identity: string): Promise<PersistenceEntity> {
+    return this.repository.get(identity, "CanonicalUnit", {
+      unit_kind: "EvidenceUnit",
+    });
   }
 
   async getEvents(parent_identity: string): Promise<readonly PersistenceEvent[]> {
@@ -219,6 +270,15 @@ export class ResearchOperations {
     const entity = await this.getClaimUnit(identity);
     return this.jsonEncoder.encode(entity.payload);
   }
+
+  /**
+   * SER-JSON-001 encode of a persisted EvidenceUnit.
+   * Lower-layer errors propagate unchanged. Does not inject OPS metadata into payload.
+   */
+  async exportEvidenceUnit(identity: string): Promise<string> {
+    const entity = await this.getEvidenceUnit(identity);
+    return this.jsonEncoder.encode(entity.payload);
+  }
 }
 
 /** Convenience factory with default Core/ENC/SER instances. */
@@ -236,9 +296,11 @@ export function createResearchOperations(
   }
   return new ResearchOperations({
     claimFactory: new ClaimFactory(),
+    evidenceFactory: new EvidenceFactory(),
+    evidenceTransitions: new EvidenceTransitionService(),
     encoder: new CanonicalEncoder(),
     jsonEncoder: new JsonEncoder(),
     persistenceSession,
   });
 }
-
+

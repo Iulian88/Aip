@@ -1,0 +1,13 @@
+SPRINT-019 FORMALLY CERTIFIED AND CLOSED
+audit=CODE-AUDIT-019 VERIFIED WITH OBSERVATIONS
+architecture_audit=SPEC-019 APPROVED WITH OBSERVATIONS
+required_patches=0
+sci_decision=CERTIFIED
+ops_decision=CERTIFIED
+sci_certificate_id=cert:sess-sprint-019-formal-sci:sciros-reference-test-suite:certified
+ops_certificate_id=cert:sess-sprint-019-formal-ops:sciros-full-reference-corpus:certified
+sci_profile=CONF-001@1.0.0
+ops_profile=CONF-001@1.1.0-OPS
+sci_corpus=REF-CORPUS-SCI count=44
+ops_evidence_corpus=REF-CORPUS-FULL count=80
+ops_authoring_corpus=REF-CORPUS-OPS count=36

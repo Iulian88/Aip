@@ -1,12 +1,13 @@
 # SciROS Reference Implementation
 
-**Sprint:** EXEC-SPRINT-018 · ResearchWorkspace Foundation  
-**Status:** **FORMALLY CERTIFIED AND CLOSED** (CODE-AUDIT-020: APPROVED WITH OBSERVATIONS; required patches: 0)
+**Sprint:** EXEC-SPRINT-019 · Evidence Operations  
+**Status:** **FORMALLY CERTIFIED AND CLOSED** (CODE-AUDIT-019: VERIFIED WITH OBSERVATIONS; required patches: 0)
 
 | Field | Value |
 |-------|--------|
 | Implementation | COMPLETE |
-| Independent Audit | CODE-AUDIT-020 — APPROVED WITH OBSERVATIONS |
+| Architecture Audit | SPEC-019 APPROVED WITH OBSERVATIONS |
+| Independent Code Audit | CODE-AUDIT-019 — VERIFIED WITH OBSERVATIONS |
 | Required Patches | NONE |
 | Formal Certification | CERTIFIED |
 | Closure | COMPLETE |
@@ -14,19 +15,20 @@
 | OPS profile | `CONF-001@1.1.0-OPS` |
 | Engine CertificationDecision (SCI) | `CERTIFIED` |
 | Engine CertificationDecision (OPS) | `CERTIFIED` |
-| Certification artifacts | `fixtures/cert/SPRINT-018_*.json`, `CERT_018_PASS` |
-| Git baseline | `Iulian88/Aip` · `main` |
+| Certification artifacts | `fixtures/cert/SPRINT-019_*.json`, `CERT_019_PASS` |
+| Corpora | SCI 44/44 · OPS 36/36 · FULL 80/80 |
 
-Non-blocking observations from CODE-AUDIT-020 remain recorded; they were not eliminated.
+Non-blocking observations from CODE-AUDIT-019 remain recorded; they were not eliminated.
 
-Prior: Sprint 017 FORMALLY CERTIFIED AND CLOSED.
+Prior: Sprint 018 FORMALLY CERTIFIED AND CLOSED.
 
 | Field | Value |
 |-------|--------|
-| SPEC | SPEC-018 v0.2.0-PATCHED (CODE-AUDIT-019A APPROVED WITH OBSERVATIONS) |
-| Slice | ResearchWorkspace Foundation |
-| ResearchSession | Memory-only; orphan sessions preserved |
-| ResearchWorkspace | Memory-only; optional session binding; WorkspaceSnapshot additive |
+| SPEC | SPEC-019 v0.1.0-DRAFT |
+| Slice | Evidence OPS orchestration |
+| Evidence | Core SCI-002 via OPS; draft create-once; optional pre-persist transition |
+| Membership | Same M1–M8; `unit_kind: EvidenceUnit` |
+| Relationships | `bears_on` ≠ `supported_by` (SSR-5); membership ≠ either |
 
 ## Commands
 
@@ -42,6 +44,8 @@ node scripts/test-017-ops-conformance-certification.mjs
 node scripts/smoke-017-ops-conformance-certification.mjs
 node scripts/test-018-research-workspace.mjs
 node scripts/smoke-018-research-workspace.mjs
+node scripts/test-019-evidence-operations.mjs
+node scripts/smoke-019-evidence-operations.mjs
 ```
 
 ## Evidence chain (unchanged)
@@ -52,7 +56,7 @@ OPS → REF-OPS → ReferenceRunner → ReferenceReport
     → CertificationEngine → Certificate
 ```
 
-## Sprint 018 IN / OUT
+## Sprint 019 IN / OUT
 
-**IN:** ResearchWorkspace, identity, lifecycle, optional session binding, membership, WorkspaceSnapshot, REF-OPS evidence, tests.  
-**OUT:** Durable workspace index, multi-session concurrency, Evidence/literature/AI/UI/DB, post-persist replace.
+**IN:** registerEvidenceUnit, getEvidenceUnit, exportEvidenceUnit, REF-OPS-022…036, tests, formal certification.  
+**OUT:** Durable workspace, concurrency, Grade/Contradiction/NR/Verification OPS, literature, DocumentArtifact, AI, UI, DB, post-persist replace.
