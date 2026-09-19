@@ -1,10 +1,11 @@
 /**
  * Bridge to shared PersistencePort — hand-off only, no schema-as-law.
- * Stores Canonical Units via the MemoryPersistenceRepository.
+ * Stores Canonical Units via the MemoryPersistenceRepository (Model C initial revision).
  */
 import type { PersistencePort } from "@sciros/shared";
 import { entityFromCanonicalUnit } from "../entity.js";
 import { PersistenceError, isPersistenceError } from "../errors.js";
+import { INITIAL_REVISION_ID } from "../revision.js";
 import type { PersistenceEntity } from "../types.js";
 import {
   MemoryPersistenceRepository,
@@ -27,6 +28,7 @@ function unitKindFromEntity(entity: PersistenceEntity): string | undefined {
 /**
  * PersistencePort adapter for RPR S16 hand-off.
  * Does not execute processor stages; stores resulting Canonical Unit state.
+ * Model C: creates rev:initial + ensureInitialHead.
  */
 export class RepositoryPersistencePort implements PersistencePort {
   private readonly store = new MemoryStore();
@@ -34,12 +36,14 @@ export class RepositoryPersistencePort implements PersistencePort {
 
   async persist(unit: unknown): Promise<void> {
     try {
-      const entity = entityFromCanonicalUnit(unit);
+      const entity = entityFromCanonicalUnit(unit, {
+        revision_id: INITIAL_REVISION_ID,
+      });
       assertEntityIntegrity(entity);
       const unit_kind = unitKindFromEntity(entity);
       const lookup =
         entity.entity_kind === "CanonicalUnit" && unit_kind !== undefined
-          ? { unit_kind }
+          ? { unit_kind, revision_id: INITIAL_REVISION_ID }
           : undefined;
 
       if (await this.repository.exists(entity.identity, entity.entity_kind, lookup)) {
@@ -52,9 +56,23 @@ export class RepositoryPersistencePort implements PersistencePort {
         await this.repository.replace(entity, {
           expected_version: existing.content_version,
         });
+        if (entity.entity_kind === "CanonicalUnit" && unit_kind !== undefined) {
+          await this.repository.ensureInitialHead(
+            entity.identity,
+            unit_kind,
+            INITIAL_REVISION_ID,
+          );
+        }
         return;
       }
       await this.repository.create(entity);
+      if (entity.entity_kind === "CanonicalUnit" && unit_kind !== undefined) {
+        await this.repository.ensureInitialHead(
+          entity.identity,
+          unit_kind,
+          INITIAL_REVISION_ID,
+        );
+      }
     } catch (err) {
       if (isPersistenceError(err)) throw err;
       throw new PersistenceError(

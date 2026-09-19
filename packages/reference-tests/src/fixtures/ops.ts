@@ -3,9 +3,14 @@
  * Executable evidence for Research Operations via ReferenceRunner.
  * Authorities cite OPS-001 (+ Core/ENC/SER as exercised). No PERSIST-001.
  */
-import { OpsError, referenceAppMarker } from "@sciros/reference-app";
-import { EvidenceValidationError } from "@sciros/core";
-import { PersistenceError } from "@sciros/persistence";
+import { OpsError, referenceAppMarker, claimFromClaimUnitPayload } from "@sciros/reference-app";
+import {
+  ClaimTransitionService,
+  CLINICAL_BOUNDARY_ACK,
+  EvidenceValidationError,
+} from "@sciros/core";
+import { CanonicalEncoder } from "@sciros/encoding";
+import { PersistenceError, entityFromCanonicalUnit } from "@sciros/persistence";
 import { stableStringify } from "@sciros/serialization";
 import type { ReferenceFixture } from "../types.js";
 import {
@@ -963,6 +968,303 @@ export const opsFixtures: readonly ReferenceFixture[] = Object.freeze([
       const a = await run();
       const b = await run();
       check.equal("deterministic full workflow", a, b);
+    },
+  },
+  {
+    fixture_id: "REF-OPS-037",
+    title: "Model C initial Claim revision + RevisionHead",
+    scenario: "valid",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-037");
+      const claimId = "claim:ref-ops-037";
+      const { entity } = await ops.registerClaimUnit(claimInput(claimId));
+      check.equal("revision_id", entity.revision_id, "rev:initial");
+      check.ok(
+        "four-segment key",
+        entity.storage_key.includes(":rev:initial"),
+      );
+      const head = await ops.getClaimHead(claimId);
+      check.equal("head kind", head.entity_kind, "RevisionHead");
+      check.equal("head pointer", head.content_version, "rev:initial");
+      const current = await ops.getClaimUnit(claimId);
+      check.equal("head-resolved", current.revision_id, "rev:initial");
+    },
+  },
+  {
+    fixture_id: "REF-OPS-038",
+    title: "Claim Standing post-persist creates successor revision + advances head",
+    scenario: "transition",
+    authorities: ["OPS-001", "SCI-001"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-038");
+      const claimId = "claim:ref-ops-038";
+      await ops.registerClaimUnit(claimInput(claimId));
+      const result = await ops.transitionClaimStanding({
+        identity: claimId,
+        revision_id: "rev:standing-supported-1",
+        expected_head_revision_id: "rev:initial",
+        transition: {
+          to: "supported",
+          authority_agent: OPS_HUMAN,
+          reason: "clinical_boundary_ack REF-OPS-038 supported",
+          decision_ref: "decision:ref-ops-038",
+          at: OPS_AT,
+          event_id: "ste:ref-ops-038",
+          supported_by: ["evidence:ref-ops-038"],
+        },
+      });
+      check.equal("standing", result.claim.standing, "supported");
+      check.equal("head", result.head_revision_id, "rev:standing-supported-1");
+      check.equal(
+        "predecessor",
+        result.entity.predecessor_revision_id,
+        "rev:initial",
+      );
+      const old = await ops.getClaimUnitRevision(claimId, "rev:initial");
+      check.equal(
+        "old immutable standing content",
+        (old.payload as { envelope: { content: { standing: string } } }).envelope
+          .content.standing,
+        "draft_unverified",
+      );
+      const lineage = await ops.getClaimLineage(claimId);
+      check.equal("lineage length", lineage.length, 2);
+    },
+  },
+  {
+    fixture_id: "REF-OPS-039",
+    title: "Stale RevisionHead CAS rejects with CONFLICT",
+    scenario: "invalid",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "failure", failure_code: "CONFLICT" },
+    async execute() {
+      const ops = makeOps("persist-sess:ref-ops-039");
+      const claimId = "claim:ref-ops-039";
+      await ops.registerClaimUnit(claimInput(claimId));
+      await ops.transitionClaimStanding({
+        identity: claimId,
+        revision_id: "rev:standing-supported-1",
+        expected_head_revision_id: "rev:initial",
+        transition: {
+          to: "supported",
+          authority_agent: OPS_HUMAN,
+          reason: "clinical_boundary_ack REF-OPS-039",
+          decision_ref: "decision:ref-ops-039",
+          at: OPS_AT,
+          event_id: "ste:ref-ops-039-a",
+          supported_by: ["evidence:ref-ops-039"],
+        },
+      });
+      await ops.transitionClaimStanding({
+        identity: claimId,
+        revision_id: "rev:standing-contested-2",
+        expected_head_revision_id: "rev:initial",
+        transition: {
+          to: "contested",
+          authority_agent: OPS_HUMAN,
+          reason: "clinical_boundary_ack REF-OPS-039 stale",
+          at: OPS_AT,
+          event_id: "ste:ref-ops-039-b",
+          contested_by: ["contradiction:ref-ops-039"],
+          supported_by: ["evidence:ref-ops-039"],
+        },
+      });
+    },
+  },
+  {
+    fixture_id: "REF-OPS-040",
+    title: "Duplicate revision_id rejects ALREADY_EXISTS",
+    scenario: "invalid",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "failure", failure_code: "ALREADY_EXISTS" },
+    async execute() {
+      const ops = makeOps("persist-sess:ref-ops-040");
+      const claimId = "claim:ref-ops-040";
+      await ops.registerClaimUnit(claimInput(claimId));
+      const result = await ops.transitionClaimStanding({
+        identity: claimId,
+        revision_id: "rev:standing-supported-1",
+        expected_head_revision_id: "rev:initial",
+        transition: {
+          to: "supported",
+          authority_agent: OPS_HUMAN,
+          reason: "clinical_boundary_ack REF-OPS-040",
+          decision_ref: "decision:ref-ops-040",
+          at: OPS_AT,
+          event_id: "ste:ref-ops-040",
+          supported_by: ["evidence:ref-ops-040"],
+        },
+      });
+      await ops.repository.create(result.entity);
+    },
+  },
+  {
+    fixture_id: "REF-OPS-041",
+    title: "Illegal Claim Standing transition propagates Core error",
+    scenario: "invalid",
+    authorities: ["OPS-001", "SCI-001"],
+    expectation: { outcome: "failure", failure_code: "F_TRANSITION" },
+    async execute() {
+      const ops = makeOps("persist-sess:ref-ops-041");
+      const claimId = "claim:ref-ops-041";
+      await ops.registerClaimUnit(claimInput(claimId));
+      await ops.transitionClaimStanding({
+        identity: claimId,
+        revision_id: "rev:illegal-1",
+        expected_head_revision_id: "rev:initial",
+        transition: {
+          to: "draft_unverified",
+          authority_agent: OPS_HUMAN,
+          reason: "clinical_boundary_ack illegal",
+          decision_ref: "decision:ref-ops-041",
+          at: OPS_AT,
+          event_id: "ste:ref-ops-041",
+        },
+      });
+    },
+  },
+  {
+    fixture_id: "REF-OPS-042",
+    title: "Model C Evidence initial revision + head (Sprint 019 regression)",
+    scenario: "valid",
+    authorities: ["OPS-001", "SCI-002"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-042");
+      const evidenceId = "evidence:ref-ops-042";
+      const { entity } = await ops.registerEvidenceUnit(evidenceInput(evidenceId));
+      check.equal("revision_id", entity.revision_id, "rev:initial");
+      const head = await ops.repository.getHead(evidenceId, "EvidenceUnit");
+      check.equal("head", head.content_version, "rev:initial");
+      const got = await ops.getEvidenceUnit(evidenceId);
+      check.equal("retrieved", got.identity, evidenceId);
+    },
+  },
+  {
+    fixture_id: "REF-OPS-043",
+    title: "Deterministic Claim Standing transition + export double-run",
+    scenario: "valid",
+    authorities: ["OPS-001", "SER-JSON-001"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      async function run() {
+        const ops = makeOps("persist-sess:ref-ops-043");
+        const claimId = "claim:ref-ops-043";
+        await ops.registerClaimUnit(claimInput(claimId));
+        await ops.transitionClaimStanding({
+          identity: claimId,
+          revision_id: "rev:standing-supported-1",
+          expected_head_revision_id: "rev:initial",
+          transition: {
+            to: "supported",
+            authority_agent: OPS_HUMAN,
+            reason: "clinical_boundary_ack REF-OPS-043",
+            decision_ref: "decision:ref-ops-043",
+            at: OPS_AT,
+            event_id: "ste:ref-ops-043",
+            supported_by: ["evidence:ref-ops-043"],
+          },
+        });
+        const lineage = await ops.getClaimLineage(claimId);
+        const json = await ops.exportClaimUnit(claimId);
+        const head = await ops.getClaimHead(claimId);
+        return stableStringify({
+          lineage,
+          json,
+          head: head.content_version,
+        });
+      }
+      check.equal("deterministic", await run(), await run());
+    },
+  },
+  {
+    fixture_id: "REF-OPS-044",
+    title: "Snapshot includes revision rows and RevisionHead",
+    scenario: "valid",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-044");
+      const claimId = "claim:ref-ops-044";
+      await ops.registerClaimUnit(claimInput(claimId));
+      await ops.transitionClaimStanding({
+        identity: claimId,
+        revision_id: "rev:standing-supported-1",
+        expected_head_revision_id: "rev:initial",
+        transition: {
+          to: "supported",
+          authority_agent: OPS_HUMAN,
+          reason: "clinical_boundary_ack REF-OPS-044",
+          decision_ref: "decision:ref-ops-044",
+          at: OPS_AT,
+          event_id: "ste:ref-ops-044",
+          supported_by: ["evidence:ref-ops-044"],
+        },
+      });
+      const snap = await ops.repository.snapshot();
+      const revs = snap.entities.filter(
+        (e) => e.entity_kind === "CanonicalUnit" && e.identity === claimId,
+      );
+      const heads = snap.entities.filter(
+        (e) => e.entity_kind === "RevisionHead" && e.identity === claimId,
+      );
+      check.equal("two revisions", revs.length, 2);
+      check.equal("one head", heads.length, 1);
+      check.equal("head pointer", heads[0]?.content_version, "rev:standing-supported-1");
+    },
+  },
+  {
+    fixture_id: "REF-OPS-045",
+    title: "Partial-write: revision create without head advance leaves prior head",
+    scenario: "valid",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-045");
+      const claimId = "claim:ref-ops-045";
+      await ops.registerClaimUnit(claimInput(claimId));
+      // Simulate step C without D: create successor revision directly
+      const prior = await ops.getClaimUnit(claimId);
+      const claim = new ClaimTransitionService().transition(
+        claimFromClaimUnitPayload(prior.payload),
+        {
+          to: "supported",
+          authority_agent: OPS_HUMAN,
+          reason: `${CLINICAL_BOUNDARY_ACK} orphan revision`,
+          decision_ref: "decision:ref-ops-045",
+          at: OPS_AT,
+          event_id: "ste:ref-ops-045",
+          supported_by: ["evidence:ref-ops-045"],
+        },
+      );
+      const unit = await new CanonicalEncoder().assemble(claim);
+      await ops.repository.create(
+        entityFromCanonicalUnit(unit, {
+          revision_id: "rev:orphan-supported",
+          predecessor_revision_id: "rev:initial",
+        }),
+      );
+      const head = await ops.getClaimHead(claimId);
+      check.equal("head unchanged", head.content_version, "rev:initial");
+      const orphan = await ops.getClaimUnitRevision(claimId, "rev:orphan-supported");
+      check.equal("orphan exists", orphan.revision_id, "rev:orphan-supported");
+      const current = await ops.getClaimUnit(claimId);
+      check.equal("current still initial", current.revision_id, "rev:initial");
+    },
+  },
+  {
+    fixture_id: "REF-OPS-046",
+    title: "Missing Claim revision propagates NOT_FOUND",
+    scenario: "invalid",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "failure", failure_code: "NOT_FOUND" },
+    async execute() {
+      const ops = makeOps("persist-sess:ref-ops-046");
+      await ops.registerClaimUnit(claimInput("claim:ref-ops-046"));
+      await ops.getClaimUnitRevision("claim:ref-ops-046", "rev:missing");
     },
   },
 ]);

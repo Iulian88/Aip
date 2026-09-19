@@ -14,6 +14,12 @@ import {
   SUPPORTED_ENCODING_AUTHORITY,
   SUPPORTED_ENCODING_VERSION,
 } from "./types.js";
+import {
+  INITIAL_REVISION_ID,
+  assertRevisionId,
+  makeCanonicalUnitRevisionStorageKey,
+  makeRevisionHeadStorageKey,
+} from "./revision.js";
 
 export function makeStorageKey(
   kind: PersistenceEntityKind,
@@ -27,6 +33,20 @@ export function makeStorageKey(
     return `persist:${kind}:${discriminator}:${identity}`;
   }
   return `persist:${kind}:${identity}`;
+}
+
+export {
+  INITIAL_REVISION_ID,
+  REVISION_ID,
+  assertRevisionId,
+  makeCanonicalUnitRevisionStorageKey,
+  makeLegacyCanonicalUnitStorageKey,
+  makeRevisionHeadStorageKey,
+} from "./revision.js";
+
+export interface CanonicalUnitPersistenceOptions {
+  readonly revision_id?: string;
+  readonly predecessor_revision_id?: string;
 }
 
 function asRecord(value: unknown, label: string): Record<string, unknown> {
@@ -141,7 +161,10 @@ function assertEncodingPins(
 }
 
 /** Build PersistenceEntity from a Canonical Unit object (ENC-001 shape). */
-export function entityFromCanonicalUnit(unit: unknown): PersistenceEntity {
+export function entityFromCanonicalUnit(
+  unit: unknown,
+  options?: CanonicalUnitPersistenceOptions,
+): PersistenceEntity {
   const root = asRecord(unit, "CanonicalUnit");
   if (typeof root.intact !== "boolean") {
     throw new PersistenceError("INTEGRITY_FAILURE", "Canonical unit.intact missing");
@@ -175,15 +198,54 @@ export function entityFromCanonicalUnit(unit: unknown): PersistenceEntity {
   const references = mapReferences(identity, env.references);
   const events = mapEvents(identity, env.events);
 
-  return Object.freeze({
-    storage_key: makeStorageKey(
-      entity_kind === "Event" ? "Event" : "CanonicalUnit",
+  if (entity_kind === "Event") {
+    return Object.freeze({
+      storage_key: makeStorageKey("Event", identity),
+      entity_kind: "Event" as const,
       identity,
-      entity_kind === "Event" ? undefined : unit_kind,
-    ),
-    entity_kind: entity_kind === "Event" ? "Event" : "CanonicalUnit",
+      content_version,
+      ontology_ref,
+      spec_ref,
+      encoding_authority,
+      encoding_version,
+      intact: root.intact,
+      payload,
+      references,
+      events,
+    });
+  }
+
+  const revision_id = options?.revision_id ?? INITIAL_REVISION_ID;
+  assertRevisionId(revision_id);
+  const predecessor = options?.predecessor_revision_id;
+  if (predecessor !== undefined) {
+    assertRevisionId(predecessor, "predecessor_revision_id");
+    if (revision_id === INITIAL_REVISION_ID) {
+      throw new PersistenceError(
+        "INVALID_STATE",
+        "rev:initial must not have predecessor_revision_id",
+      );
+    }
+    if (predecessor === revision_id) {
+      throw new PersistenceError(
+        "INVALID_STATE",
+        "predecessor_revision_id must differ from revision_id",
+      );
+    }
+  } else if (revision_id !== INITIAL_REVISION_ID) {
+    throw new PersistenceError(
+      "INVALID_STATE",
+      "non-initial CanonicalUnit revision requires predecessor_revision_id",
+    );
+  }
+
+  return Object.freeze({
+    storage_key: makeCanonicalUnitRevisionStorageKey(unit_kind, identity, revision_id),
+    entity_kind: "CanonicalUnit" as const,
     identity,
     content_version,
+    revision_id,
+    ...(predecessor !== undefined ? { predecessor_revision_id: predecessor } : {}),
     ontology_ref,
     spec_ref,
     encoding_authority,
@@ -192,6 +254,36 @@ export function entityFromCanonicalUnit(unit: unknown): PersistenceEntity {
     payload,
     references,
     events,
+  });
+}
+
+/** Model C RevisionHead entity (mutable coordination pointer). */
+export function entityFromRevisionHead(
+  scientific_identity: string,
+  unit_kind: string,
+  revision_id: string,
+): PersistenceEntity {
+  assertRevisionId(revision_id);
+  if (typeof unit_kind !== "string" || unit_kind.trim().length < 1) {
+    throw new PersistenceError("INVALID_ID", "unit_kind must be non-empty");
+  }
+  if (typeof scientific_identity !== "string" || scientific_identity.trim().length < 1) {
+    throw new PersistenceError("INVALID_ID", "identity must be non-empty");
+  }
+  return Object.freeze({
+    storage_key: makeRevisionHeadStorageKey(unit_kind, scientific_identity),
+    entity_kind: "RevisionHead" as const,
+    identity: scientific_identity,
+    content_version: revision_id,
+    payload: deepFreeze(
+      deepClone({
+        unit_kind,
+        scientific_identity,
+        revision_id,
+      }),
+    ),
+    references: Object.freeze([]),
+    events: Object.freeze([]),
   });
 }
 
@@ -291,6 +383,8 @@ export function fingerprintEntity(entity: PersistenceEntity): string {
     identity: entity.identity,
     entity_kind: entity.entity_kind,
     content_version: entity.content_version,
+    revision_id: entity.revision_id ?? null,
+    predecessor_revision_id: entity.predecessor_revision_id ?? null,
     ontology_ref: entity.ontology_ref ?? null,
     spec_ref: entity.spec_ref ?? null,
     encoding_authority: entity.encoding_authority ?? null,
@@ -302,7 +396,10 @@ export function fingerprintEntity(entity: PersistenceEntity): string {
   });
 }
 
-/** Kinds treated as immutable once created (authority-preserving append-only model). */
+/**
+ * Kinds treated as immutable once created.
+ * RevisionHead is intentionally excluded — mutable Model C coordination pointer.
+ */
 export const IMMUTABLE_KINDS: ReadonlySet<PersistenceEntityKind> = new Set([
   "CanonicalUnit",
   "Claim",

@@ -1,9 +1,9 @@
 /**
  * @sciros/reference-app — Research Operations / OPS shell.
- * Sprint 016 Claim + Sprint 018 Workspace + Sprint 019 Evidence Operations.
+ * Sprint 016 Claim + Sprint 018 Workspace + Sprint 019 Evidence + Sprint 020 Model C.
  * Orchestrates Core → ENC → Persistence → SER. Does NOT author scientific meaning.
  *
- * SPEC-016A · SPEC-018 v0.2.0-PATCHED · SPEC-019 Evidence Operations
+ * SPEC-016A · SPEC-018 v0.2.0-PATCHED · SPEC-019 Evidence Operations · SPEC-020 Model C
  */
 
 export { OpsError, isOpsError, type OpsErrorCode } from "./errors/ops-error.js";
@@ -27,7 +27,13 @@ export {
   type RegisterClaimUnitResult,
   type RegisterEvidenceUnitResult,
   type RegisterEvidenceUnitOptions,
+  type RegisterClaimUnitOptions,
+  type TransitionClaimStandingInput,
+  type TransitionClaimStandingResult,
+  type ClaimLineageEntry,
 } from "./operations/research-operations.js";
+
+export { claimFromClaimUnitPayload } from "./operations/claim-from-unit.js";
 
 export {
   projectTimeline,
@@ -40,7 +46,7 @@ export {
 
 export interface ReferenceAppMarker {
   readonly packageId: "@sciros/reference-app";
-  readonly sprint: 19;
+  readonly sprint: 20;
   readonly duplicatesProcessorLogic: false;
   readonly researchSessionPersisted: false;
   readonly researchWorkspacePersisted: false;
@@ -50,11 +56,10 @@ export interface ReferenceAppMarker {
 
 export const referenceAppMarker: ReferenceAppMarker = {
   packageId: "@sciros/reference-app",
-  sprint: 19,
+  sprint: 20,
   duplicatesProcessorLogic: false,
   researchSessionPersisted: false,
   researchWorkspacePersisted: false,
   secondEventJournal: false,
   secondIdentitySystem: false,
 };
-

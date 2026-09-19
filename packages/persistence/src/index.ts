@@ -39,9 +39,20 @@ export {
   entityFromCanonicalUnit,
   entityFromCoreObject,
   entityFromRelationship,
+  entityFromRevisionHead,
   fingerprintEntity,
   makeStorageKey,
 } from "./entity.js";
+export type { CanonicalUnitPersistenceOptions } from "./entity.js";
+
+export {
+  INITIAL_REVISION_ID,
+  REVISION_ID,
+  assertRevisionId,
+  makeCanonicalUnitRevisionStorageKey,
+  makeLegacyCanonicalUnitStorageKey,
+  makeRevisionHeadStorageKey,
+} from "./revision.js";
 
 export type { PersistenceRepository, ReplaceOptions, IdentityOptions } from "./repository.js";
 export type { PersistenceSession } from "./session.js";

@@ -1,0 +1,97 @@
+{
+  "sprint": 20,
+  "subject": "Model C Post-Persist Scientific Transition",
+  "scope": "Model C Persistence revision infrastructure + Claim Standing post-persist + Evidence initial-revision only",
+  "spec": "SPEC-020 v0.3.0-DRAFT",
+  "architecture": {
+    "model": "Model C",
+    "model_description": "Stable Scientific Identity + Immutable Revisions + RevisionHead",
+    "revision_key": "persist:CanonicalUnit:{unit_kind}:{scientific_identity}:{revision_id}",
+    "initial_revision": "rev:initial",
+    "subsequent_revision": "caller-supplied rev:…",
+    "lineage": "PersistenceEntity.predecessor_revision_id",
+    "revision_head_key": "persist:RevisionHead:{unit_kind}:{identity}",
+    "head_advancement": "replace + expected_version CAS",
+    "evidence_boundary": "initial revision + head only; no Evidence post-persist transition",
+    "chain": "OPS → REF-OPS → ReferenceRunner → ReferenceReport → ConformanceEngine(profile) → ConformanceReport(profile_id) → CertificationEngine → Certificate",
+    "conformance_engines": 1,
+    "certification_engines": 1
+  },
+  "audit": {
+    "architecture_audit": "SPEC-020 / FINAL-ARCHITECTURE-RE-AUDIT-020 APPROVED WITH OBSERVATIONS",
+    "code_audit": "CODE-AUDIT-020 APPROVED WITH OBSERVATIONS",
+    "required_patches": 0,
+    "blockers": 0
+  },
+  "execution": {
+    "status": "COMPLETE WITH OBSERVATIONS",
+    "path": "Core Standing transition → ENC assemble → Persistence.create revision → RevisionHead CAS → optional appendEvent"
+  },
+  "corpora": {
+    "REF_CORPUS_SCI": 44,
+    "REF_CORPUS_OPS": 46,
+    "REF_CORPUS_FULL": 90,
+    "sci_pass": 44,
+    "ops_pass": 46,
+    "full_pass": 90,
+    "model_c_fixtures": "REF-OPS-037…REF-OPS-046"
+  },
+  "sci": {
+    "profile_id": "CONF-001@1.0.0",
+    "corpus": "REF-CORPUS-SCI",
+    "conformance_overall": "COMPLIANT",
+    "certification_decision": "CERTIFIED",
+    "certificate_id": "cert:sess-sprint-020-formal-sci:sciros-reference-test-suite:certified",
+    "scope": [
+      "SCI-000",
+      "SCI-001",
+      "SCI-002",
+      "SCI-003",
+      "SCI-004",
+      "SCI-005",
+      "SCI-006",
+      "ENC-001",
+      "SER-001",
+      "SER-JSON-001",
+      "RPR-001",
+      "ADR-0006",
+      "CONF-001"
+    ]
+  },
+  "ops": {
+    "profile_id": "CONF-001@1.1.0-OPS",
+    "corpus": "REF-CORPUS-FULL",
+    "ops_authoring_corpus": "REF-CORPUS-OPS",
+    "conformance_overall": "COMPLIANT",
+    "certification_decision": "CERTIFIED",
+    "certificate_id": "cert:sess-sprint-020-formal-ops:sciros-full-reference-corpus:certified",
+    "scope": [
+      "SCI-000",
+      "SCI-001",
+      "SCI-002",
+      "SCI-003",
+      "SCI-004",
+      "SCI-005",
+      "SCI-006",
+      "ENC-001",
+      "SER-001",
+      "SER-JSON-001",
+      "RPR-001",
+      "ADR-0006",
+      "CONF-001",
+      "OPS-001"
+    ]
+  },
+  "observations_non_blocking": [
+    "O-020-01: No Persistence create-time existence check that predecessor_revision_id names an existing revision row",
+    "O-020-02: OPS Claim reconstruction from ENC projection is lossy for fields not in ENC content; adequate for Standing slice",
+    "O-020-03: Pre-existing Core STE randomUUID if event_id omitted; Sprint 020 revision/head ids remain deterministic; tests supply event_id",
+    "O-020-04: Raw create rejects duplicate keys with ALREADY_EXISTS even if fingerprint identical (idempotency via replace/Port)",
+    "O-020-05: Generated smoke markers (SMOKE_019_PASS corpus counts; SMOKE_020_PASS) are evidence noise, not architecture",
+    "O-020-06: Dual-read without optional legacy key rewrite (explicitly allowed)",
+    "O-020-07: Documented partial-write (revision without head) is intentional; tested; not a silent scientific commit"
+  ],
+  "formal_status": "CERTIFIED",
+  "closure": "COMPLETE",
+  "note": "Engine CertificationDecision remains CERTIFIED; non-blocking CODE-AUDIT-020 observations recorded separately (enum unchanged)."
+}

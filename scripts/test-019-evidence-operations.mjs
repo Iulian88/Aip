@@ -183,8 +183,8 @@ await test("T019-009 deterministic double-run export", async () => {
   assert.equal(await run(), await run());
 });
 
-await test("T019-010 marker sprint 19", () => {
-  assert.equal(referenceAppMarker.sprint, 19);
+await test("T019-010 marker sprint >= 19", () => {
+  assert.ok(referenceAppMarker.sprint >= 19);
   assert.equal(referenceAppMarker.secondEventJournal, false);
 });
 

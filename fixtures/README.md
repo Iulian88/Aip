@@ -43,4 +43,15 @@ No fixture payloads in Sprint 1.
 | `fixtures/cert/SPRINT-019_FORMAL_CERTIFICATION.json` | Closure record + non-blocking observations |
 | `CERT_019_PASS` (repo root) | Formal certification marker |
 
+**Sprint 020 formal certification artifacts** (emitted from live CONF/CERT engines; not fabricated):
+
+| File | Content |
+|------|---------|
+| `fixtures/cert/SPRINT-020_SCI_ConformanceReport.json` | SCI `CONF-001@1.0.0` ConformanceReport |
+| `fixtures/cert/SPRINT-020_OPS_ConformanceReport.json` | OPS `CONF-001@1.1.0-OPS` ConformanceReport |
+| `fixtures/cert/SPRINT-020_SCI_CertificationReport.json` | SCI CertificationReport (`CERTIFIED`) |
+| `fixtures/cert/SPRINT-020_OPS_CertificationReport.json` | OPS CertificationReport (`CERTIFIED`) |
+| `fixtures/cert/SPRINT-020_FORMAL_CERTIFICATION.json` | Closure record + non-blocking observations |
+| `CERT_020_PASS` (repo root) | Formal certification marker |
+
 Historical note: prior fixture README content referring to pre-SciROS mimicry tests is superseded for active implementation by REF-TEST-*.

@@ -1,4 +1,4 @@
 PASS marker
 PASS evidence lifecycle membership snapshot export
-PASS corpus SCI=44 OPS=36 FULL=80
+PASS corpus SCI=44 OPS=46 FULL=90
 PASS determinism helper

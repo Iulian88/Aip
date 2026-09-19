@@ -18,6 +18,8 @@ export const PERSISTENCE_ENTITY_KINDS = [
   "ConformanceReport",
   "CertificationReport",
   "CertificationCertificate",
+  /** Model C mutable head pointer (not scientific truth). */
+  "RevisionHead",
 ] as const;
 export type PersistenceEntityKind = (typeof PERSISTENCE_ENTITY_KINDS)[number];
 
@@ -56,8 +58,19 @@ export interface PersistenceEvent {
 export interface PersistenceEntity {
   readonly storage_key: string;
   readonly entity_kind: PersistenceEntityKind;
+  /** Scientific / canonical identity (preserved exactly). */
   readonly identity: string;
   readonly content_version: string;
+  /**
+   * Model C revision identity (Persistence metadata).
+   * Distinct from identity and from SemVer content_version.
+   */
+  readonly revision_id?: string;
+  /**
+   * Authoritative representation lineage (Model C).
+   * Absent on rev:initial; required on later CanonicalUnit revisions.
+   */
+  readonly predecessor_revision_id?: string;
   readonly ontology_ref?: string;
   readonly spec_ref?: string;
   readonly encoding_authority?: string;
