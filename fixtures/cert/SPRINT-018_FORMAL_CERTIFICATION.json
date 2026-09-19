@@ -1,0 +1,80 @@
+{
+  "sprint": 18,
+  "scope": "ResearchWorkspace Foundation",
+  "audit": {
+    "code_audit_019a": "SPEC-018 APPROVED WITH OBSERVATIONS",
+    "code_audit_020": "APPROVED WITH OBSERVATIONS",
+    "required_patches": 0
+  },
+  "architecture": {
+    "chain": "OPS → REF-OPS → ReferenceRunner → ReferenceReport → ConformanceEngine(profile) → ConformanceReport(profile_id) → CertificationEngine → Certificate",
+    "conformance_engines": 1,
+    "certification_engines": 1,
+    "research_workspace": "memory-only OPS organizational construct",
+    "research_snapshot": "frozen Sprint 016 shape",
+    "workspace_snapshot": "additive OPS view"
+  },
+  "corpora": {
+    "REF_CORPUS_SCI": 44,
+    "REF_CORPUS_OPS": 21,
+    "REF_CORPUS_FULL": 65,
+    "sci_pass": 44,
+    "ops_pass": 21,
+    "full_pass": 65
+  },
+  "sci": {
+    "profile_id": "CONF-001@1.0.0",
+    "corpus": "REF-CORPUS-SCI",
+    "conformance_overall": "COMPLIANT",
+    "certification_decision": "CERTIFIED",
+    "certificate_id": "cert:sess-sprint-018-formal-sci:sciros-reference-test-suite:certified",
+    "scope": [
+      "SCI-000",
+      "SCI-001",
+      "SCI-002",
+      "SCI-003",
+      "SCI-004",
+      "SCI-005",
+      "SCI-006",
+      "ENC-001",
+      "SER-001",
+      "SER-JSON-001",
+      "RPR-001",
+      "ADR-0006",
+      "CONF-001"
+    ]
+  },
+  "ops": {
+    "profile_id": "CONF-001@1.1.0-OPS",
+    "corpus": "REF-CORPUS-FULL",
+    "ops_authoring_corpus": "REF-CORPUS-OPS",
+    "conformance_overall": "COMPLIANT",
+    "certification_decision": "CERTIFIED",
+    "certificate_id": "cert:sess-sprint-018-formal-ops:sciros-full-reference-corpus:certified",
+    "scope": [
+      "SCI-000",
+      "SCI-001",
+      "SCI-002",
+      "SCI-003",
+      "SCI-004",
+      "SCI-005",
+      "SCI-006",
+      "ENC-001",
+      "SER-001",
+      "SER-JSON-001",
+      "RPR-001",
+      "ADR-0006",
+      "CONF-001",
+      "OPS-001"
+    ]
+  },
+  "observations_non_blocking": [
+    "Public bindWorkspace path can diverge from Ops registry if bypassing ResearchOperations (CODE-AUDIT-020)",
+    "WorkspaceSnapshot.bound_session_ids is required in TypeScript vs optional in SPEC notation (CODE-AUDIT-020)",
+    "T018-009 memory-only verification uses declarative marker (CODE-AUDIT-020)",
+    "Git delta limitation from CODE-AUDIT-020 resolved by repository baseline commit"
+  ],
+  "formal_status": "CERTIFIED",
+  "closure": "COMPLETE",
+  "note": "Engine CertificationDecision remains CERTIFIED; non-blocking audit observations recorded separately (enum unchanged)."
+}

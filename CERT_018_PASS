@@ -1,0 +1,12 @@
+SPRINT-018 FORMALLY CERTIFIED AND CLOSED
+audit=CODE-AUDIT-020 APPROVED WITH OBSERVATIONS
+required_patches=0
+sci_decision=CERTIFIED
+ops_decision=CERTIFIED
+sci_certificate_id=cert:sess-sprint-018-formal-sci:sciros-reference-test-suite:certified
+ops_certificate_id=cert:sess-sprint-018-formal-ops:sciros-full-reference-corpus:certified
+sci_profile=CONF-001@1.0.0
+ops_profile=CONF-001@1.1.0-OPS
+sci_corpus=REF-CORPUS-SCI count=44
+ops_evidence_corpus=REF-CORPUS-FULL count=65
+ops_authoring_corpus=REF-CORPUS-OPS count=21

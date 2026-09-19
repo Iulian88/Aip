@@ -1,7 +1,23 @@
 # SciROS Reference Implementation
 
 **Sprint:** EXEC-SPRINT-018 · ResearchWorkspace Foundation  
-**Status:** **IMPLEMENTED** — ResearchWorkspace Foundation (gates green)  
+**Status:** **FORMALLY CERTIFIED AND CLOSED** (CODE-AUDIT-020: APPROVED WITH OBSERVATIONS; required patches: 0)
+
+| Field | Value |
+|-------|--------|
+| Implementation | COMPLETE |
+| Independent Audit | CODE-AUDIT-020 — APPROVED WITH OBSERVATIONS |
+| Required Patches | NONE |
+| Formal Certification | CERTIFIED |
+| Closure | COMPLETE |
+| SCI profile | `CONF-001@1.0.0` |
+| OPS profile | `CONF-001@1.1.0-OPS` |
+| Engine CertificationDecision (SCI) | `CERTIFIED` |
+| Engine CertificationDecision (OPS) | `CERTIFIED` |
+| Certification artifacts | `fixtures/cert/SPRINT-018_*.json`, `CERT_018_PASS` |
+| Git baseline | `Iulian88/Aip` · `main` |
+
+Non-blocking observations from CODE-AUDIT-020 remain recorded; they were not eliminated.
 
 Prior: Sprint 017 FORMALLY CERTIFIED AND CLOSED.
 
@@ -40,4 +56,3 @@ OPS → REF-OPS → ReferenceRunner → ReferenceReport
 
 **IN:** ResearchWorkspace, identity, lifecycle, optional session binding, membership, WorkspaceSnapshot, REF-OPS evidence, tests.  
 **OUT:** Durable workspace index, multi-session concurrency, Evidence/literature/AI/UI/DB, post-persist replace.
-
