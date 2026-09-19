@@ -1,0 +1,11 @@
+PASS ENC pin normalization
+PASS JP-3 null omission
+PASS Unknown root rejection
+PASS GradeDesignation round-trip
+PASS no intact export
+PASS Invalid ontology pin reject
+PASS Invalid spec pin reject
+PASS regression all units
+PASS S05 binding
+PASS S06 decode
+PASS S17 projection

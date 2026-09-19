@@ -1,0 +1,37 @@
+{
+  "manifestVersion": "1.0.0",
+  "sprint": 1,
+  "note": "Pin template only — versions record bindings; this file does not amend authorities.",
+  "pins": {
+    "SCI-000": { "version": "0.1.0", "pathHint": "specs/scientific/SCI-000_core_ontology.md" },
+    "SCI-001": { "version": "0.1.4", "pathHint": "specs/scientific/SCI-001_claim_object.md" },
+    "SCI-002": { "version": "0.1.0", "pathHint": "specs/scientific/SCI-002_evidence_object.md" },
+    "SCI-003": { "version": "0.1.0", "pathHint": "specs/scientific/SCI-003_evidence_grade.md" },
+    "SCI-004": { "version": "0.1.0", "pathHint": "specs/scientific/SCI-004_contradiction_object.md" },
+    "SCI-005": { "version": "0.1.0", "pathHint": "specs/scientific/SCI-005_negative_result_object.md" },
+    "SCI-006": { "version": "0.1.0", "pathHint": "specs/scientific/SCI-006_verification_object.md" },
+    "ADR-0006": {
+      "version": "ACCEPTED",
+      "pathHint": "specs/architecture/ADR-0006_workflow_state_vs_scientific_standing.md"
+    },
+    "RA-001": { "status": "FROZEN_APPROVED", "filing": "pending_or_external" },
+    "DM-001": { "status": "FROZEN_APPROVED", "filing": "pending_or_external" },
+    "ENC-001": { "status": "FROZEN_APPROVED", "filing": "pending_or_external" },
+    "SER-001": { "status": "FROZEN_APPROVED", "filing": "pending_or_external" },
+    "SER-JSON-001": { "status": "FROZEN_APPROVED", "filing": "pending_or_external" },
+    "RIA-001": { "status": "FROZEN_APPROVED", "filing": "pending_or_external" },
+    "RIA-002": { "status": "FROZEN_APPROVED", "filing": "pending_or_external" },
+    "RPR-001": { "status": "FROZEN_APPROVED", "filing": "pending_or_external" },
+    "OPS-001": { "status": "FROZEN_APPROVED", "filing": "pending_or_external" },
+    "CONF-001": { "status": "FROZEN_APPROVED", "filing": "pending_or_external" },
+    "REF-TEST-001": { "status": "FROZEN_APPROVED", "filing": "pending_or_external" },
+    "REF-TEST-002": { "status": "FROZEN_APPROVED", "filing": "pending_or_external" },
+    "REF-TEST-003": { "status": "FROZEN_APPROVED", "filing": "pending_or_external" },
+    "CERT-001": { "status": "FROZEN_APPROVED", "filing": "pending_or_external" },
+    "CERT-002": { "status": "FROZEN_APPROVED", "filing": "pending_or_external" },
+    "EXEC-001": { "status": "FROZEN_APPROVED", "filing": "pending_or_external" },
+    "EXEC-002": { "status": "IMPLEMENTATION_AUTHORIZED_WITH_OBSERVATIONS" },
+    "EXEC-003": { "status": "EXECUTION_CONTRACT_READY" },
+    "IMP-001": { "status": "BACKLOG_READY" }
+  }
+}

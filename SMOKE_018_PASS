@@ -1,0 +1,4 @@
+PASS marker memory-only
+PASS workspace lifecycle bind membership snapshot
+PASS INVALID_WORKSPACE
+PASS SCI regression 44/44

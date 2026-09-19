@@ -1,0 +1,25 @@
+# CITATION (placeholder)
+
+```yaml
+# CITATION.cff will be finalized at first public software release.
+# Until then, cite the documentation foundation and repository URL.
+cff-version: 1.2.0
+title: "AIP — Autoimmune Insight Platform (Documentation Foundation)"
+message: "If you use this project's design documentation, please cite it."
+type: software
+authors:
+  - name: "AIP Project Contributors"
+abstract: >
+  Open, modular, reproducible, explainable bioinformatics platform design
+  for molecular mimicry analysis generating computational hypotheses for
+  autoimmune research—not medical diagnoses.
+keywords:
+  - bioinformatics
+  - molecular mimicry
+  - autoimmunity
+  - reproducibility
+  - explainability
+license: "TBD"
+```
+
+See also [docs/08-reference/license-and-attribution.md](docs/08-reference/license-and-attribution.md).

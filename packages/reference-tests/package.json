@@ -1,0 +1,32 @@
+{
+  "name": "@sciros/reference-tests",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node dist/cli.js",
+    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\""
+  },
+  "dependencies": {
+    "@sciros/core": "workspace:*",
+    "@sciros/encoding": "workspace:*",
+    "@sciros/persistence": "workspace:*",
+    "@sciros/processor": "workspace:*",
+    "@sciros/reference-app": "workspace:*",
+    "@sciros/serialization": "workspace:*",
+    "@sciros/shared": "workspace:*"
+  }
+}

@@ -1,0 +1,7 @@
+PASS Certification Engine
+PASS Evidence ingestion
+PASS Decision generation
+PASS Certificate generation
+PASS JSON report
+PASS Human report
+PASS Deterministic output

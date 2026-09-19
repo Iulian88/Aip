@@ -1,0 +1,31 @@
+{
+  "name": "sciros",
+  "private": true,
+  "type": "module",
+  "version": "0.0.0",
+  "description": "SciROS Reference Implementation monorepo (Sprint 1 foundation — no scientific behaviour)",
+  "packageManager": "pnpm@9.15.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "tsc -b --pretty false",
+    "test": "tsc -b && node packages/reference-tests/dist/cli.js",
+    "clean": "pnpm -r run clean && node -e \"require('fs').rmSync('tsconfig.tsbuildinfo',{force:true})\""
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.17.0",
+    "@types/node": "^22.10.2",
+    "eslint": "^9.17.0",
+    "eslint-config-prettier": "^9.1.0",
+    "globals": "^15.14.0",
+    "prettier": "^3.4.2",
+    "typescript": "^5.7.2",
+    "typescript-eslint": "^8.18.2"
+  }
+}

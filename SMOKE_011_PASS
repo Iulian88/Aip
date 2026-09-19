@@ -1,0 +1,18 @@
+PASS register JSON profile
+PASS bind JSON profile
+PASS export Canonical Unit
+PASS decode JSON profile
+PASS round trip
+PASS import/export deterministic
+PASS canonical integrity preserved
+PASS identity preserved
+PASS pins preserved
+PASS references preserved
+PASS events preserved
+PASS extensions preserved
+PASS content preserved
+PASS authority mismatch rejection
+PASS profile mismatch rejection
+PASS malformed JSON rejection
+PASS duplicate identifier rejection
+PASS broken reference rejection

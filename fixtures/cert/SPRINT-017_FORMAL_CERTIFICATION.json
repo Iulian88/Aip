@@ -1,0 +1,78 @@
+{
+  "sprint": 17,
+  "scope": "Research Operations Conformance & Certification Integration",
+  "audit": {
+    "code_audit_017a": "SPEC-017 APPROVED WITH OBSERVATIONS",
+    "code_audit_018": "SPRINT-017 VERIFIED WITH OBSERVATIONS",
+    "required_patches": 0
+  },
+  "architecture": {
+    "chain": "OPS → REF-OPS → ReferenceRunner → ReferenceReport → ConformanceEngine(profile) → ConformanceReport(profile_id) → CertificationEngine → Certificate",
+    "conformance_engines": 1,
+    "certification_engines": 1,
+    "dimensions": 7
+  },
+  "corpora": {
+    "REF_CORPUS_SCI": 44,
+    "REF_CORPUS_OPS": 15,
+    "REF_CORPUS_FULL": 59,
+    "sci_pass": 44,
+    "ops_pass": 15,
+    "full_pass": 59
+  },
+  "sci": {
+    "profile_id": "CONF-001@1.0.0",
+    "corpus": "REF-CORPUS-SCI",
+    "conformance_overall": "COMPLIANT",
+    "certification_decision": "CERTIFIED",
+    "certificate_id": "cert:sess-sprint-017-formal-sci:sciros-reference-test-suite:certified",
+    "scope": [
+      "SCI-000",
+      "SCI-001",
+      "SCI-002",
+      "SCI-003",
+      "SCI-004",
+      "SCI-005",
+      "SCI-006",
+      "ENC-001",
+      "SER-001",
+      "SER-JSON-001",
+      "RPR-001",
+      "ADR-0006",
+      "CONF-001"
+    ]
+  },
+  "ops": {
+    "profile_id": "CONF-001@1.1.0-OPS",
+    "corpus": "REF-CORPUS-FULL",
+    "ops_authoring_corpus": "REF-CORPUS-OPS",
+    "conformance_overall": "COMPLIANT",
+    "certification_decision": "CERTIFIED",
+    "certificate_id": "cert:sess-sprint-017-formal-ops:sciros-full-reference-corpus:certified",
+    "scope": [
+      "SCI-000",
+      "SCI-001",
+      "SCI-002",
+      "SCI-003",
+      "SCI-004",
+      "SCI-005",
+      "SCI-006",
+      "ENC-001",
+      "SER-001",
+      "SER-JSON-001",
+      "RPR-001",
+      "ADR-0006",
+      "CONF-001",
+      "OPS-001"
+    ]
+  },
+  "observations_non_blocking": [
+    "No git history / no commit delta proof (CODE-AUDIT-018)",
+    "SCI profile currently accepts FULL evidence under SCI rules (CODE-AUDIT-018)",
+    "OPS-001 filing remains pending externally (CODE-AUDIT-018)",
+    "Some source files have cosmetic doubled newlines (CODE-AUDIT-018)"
+  ],
+  "formal_status": "CERTIFIED",
+  "closure": "COMPLETE",
+  "note": "Engine CertificationDecision remains CERTIFIED; non-blocking audit observations recorded separately (enum unchanged)."
+}

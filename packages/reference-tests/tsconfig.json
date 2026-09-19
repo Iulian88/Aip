@@ -1,0 +1,18 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "src",
+    "composite": true
+  },
+  "include": ["src/**/*.ts"],
+  "references": [
+    { "path": "../shared" },
+    { "path": "../core" },
+    { "path": "../encoding" },
+    { "path": "../serialization" },
+    { "path": "../processor" },
+    { "path": "../persistence" },
+    { "path": "../../apps/reference-app" }
+  ]
+}

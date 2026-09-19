@@ -1,0 +1,23 @@
+SMOKE_016_PASS
+checks=21
+PASS reference-app package loads
+PASS session lifecycle
+PASS session identity separation
+PASS OpsError OPS-only
+PASS ClaimFactory.createDraft
+PASS CanonicalEncoder.assemble
+PASS Persistence.create
+PASS unit_kind-aware retrieval
+PASS explicit appendEvent
+PASS event retrieval
+PASS timeline
+PASS Persistence.snapshot
+PASS ResearchSnapshot view
+PASS SER export
+PASS session membership memory-only
+PASS deterministic re-run
+PASS ResearchSession not persisted
+PASS immutable replacement rejection
+PASS PersistenceError propagation
+PASS architecture boundaries
+PASS reference tests 44/44

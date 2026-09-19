@@ -1,0 +1,8 @@
+PASS fixture loading
+PASS runner
+PASS deterministic execution
+PASS reports
+PASS JSON fixtures
+PASS Canonical fixtures
+PASS Processor fixtures
+PASS round-trip fixtures

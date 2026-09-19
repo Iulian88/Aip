@@ -1,0 +1,26 @@
+PASS persistence package loads
+PASS repository creation
+PASS create
+PASS get
+PASS exists
+PASS list
+PASS deterministic ordering
+PASS canonical round-trip
+PASS version preservation
+PASS authority preservation
+PASS integrity preservation
+PASS relationship round-trip
+PASS event round-trip
+PASS immutable rejection where applicable
+PASS transaction commit
+PASS transaction rollback
+PASS corruption rejection
+PASS deterministic snapshot
+PASS repeated identical operation
+PASS EvidenceUnit / GradeDesignationUnit shared identity
+PASS unit_kind discriminator
+PASS public PersistencePort lookup
+PASS no wrong-target lookup
+PASS existing reference-test suite remains 44/44
+PASS Conformance remains functional
+PASS Certification remains functional

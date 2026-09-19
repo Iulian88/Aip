@@ -1,0 +1,6 @@
+PASS global REQUIRED_* isolation
+PASS SCI regression REF→CONF→CERT
+PASS OPS-only corpus not CONF target
+PASS OPS chain REF-OPS→ReferenceRunner→CONF→CERT
+PASS deterministic repeated evaluation
+PASS single engines + default SCI profile

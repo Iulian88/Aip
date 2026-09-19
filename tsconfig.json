@@ -1,0 +1,16 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./packages/shared" },
+    { "path": "./packages/core" },
+    { "path": "./packages/encoding" },
+    { "path": "./packages/serialization" },
+    { "path": "./packages/processor" },
+    { "path": "./packages/persistence" },
+    { "path": "./apps/reference-app" },
+    { "path": "./packages/reference-tests" },
+    { "path": "./packages/conformance" },
+    { "path": "./packages/certification" }
+  ]
+}
+
