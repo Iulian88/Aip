@@ -1809,5 +1809,539 @@ export const opsFixtures: readonly ReferenceFixture[] = Object.freeze([
       check.equal("evidence state", evR.evidence.record_state, "registered");
     },
   },
+  {
+    fixture_id: "REF-OPS-062",
+    title: "Post-persist Grade assignment updates grade_ref and advances Evidence head",
+    scenario: "valid",
+    authorities: ["OPS-001", "SCI-003", "SCI-002"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-062");
+      const evidenceId = "evidence:ref-ops-062";
+      await ops.registerEvidenceUnit(evidenceInput(evidenceId));
+      const r = await ops.assignEvidenceGrade({
+        identity: evidenceId,
+        revision_id: "rev:grade-1",
+        expected_head_revision_id: "rev:initial",
+        assignment: {
+          label: "model_output_only",
+          authority_agent: OPS_HUMAN,
+          reason: "REF-OPS-062 grade assign",
+          decision_ref: "decision:ref-ops-062",
+          at: OPS_AT,
+          event_id: "gae:ref-ops-062",
+        },
+      });
+      check.equal(
+        "grade_ref",
+        r.evidence.grade_ref,
+        "SCI-003@0.1.0:model_output_only",
+      );
+      check.equal("evidence_id stable", r.evidence.evidence_id, evidenceId);
+      check.equal("head", r.head_revision_id, "rev:grade-1");
+      check.equal("unit_kind", r.unit.envelope.unit_kind, "EvidenceUnit");
+      check.equal("GAE length", r.evidence.grade_assignment_log?.length, 1);
+      check.equal("version bumped", r.evidence.evidence_version, "1.0.1");
+      check.equal("record_state preserved", r.evidence.record_state, "draft");
+    },
+  },
+  {
+    fixture_id: "REF-OPS-063",
+    title: "Grade assignment predecessor_revision_id and lineage",
+    scenario: "valid",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-063");
+      const evidenceId = "evidence:ref-ops-063";
+      await ops.registerEvidenceUnit(evidenceInput(evidenceId));
+      const r = await ops.assignEvidenceGrade({
+        identity: evidenceId,
+        revision_id: "rev:grade-1",
+        expected_head_revision_id: "rev:initial",
+        assignment: {
+          label: "model_output_only",
+          authority_agent: OPS_HUMAN,
+          reason: "REF-OPS-063",
+          decision_ref: "decision:ref-ops-063",
+          at: OPS_AT,
+          event_id: "gae:ref-ops-063",
+        },
+      });
+      check.equal(
+        "predecessor",
+        r.entity.predecessor_revision_id,
+        "rev:initial",
+      );
+      const lineage = await ops.getEvidenceLineage(evidenceId);
+      check.equal("lineage length", lineage.length, 2);
+      const successor = lineage.find((e) => e.revision_id === "rev:grade-1");
+      check.equal(
+        "lineage predecessor",
+        successor?.predecessor_revision_id,
+        "rev:initial",
+      );
+    },
+  },
+  {
+    fixture_id: "REF-OPS-064",
+    title: "Deterministic Grade OPS double-run export",
+    scenario: "valid",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      async function run() {
+        const ops = makeOps("persist-sess:ref-ops-064");
+        const evidenceId = "evidence:ref-ops-064";
+        await ops.registerEvidenceUnit(evidenceInput(evidenceId));
+        await ops.assignEvidenceGrade({
+          identity: evidenceId,
+          revision_id: "rev:grade-1",
+          expected_head_revision_id: "rev:initial",
+          assignment: {
+            label: "model_output_only",
+            authority_agent: OPS_HUMAN,
+            reason: "REF-OPS-064",
+            decision_ref: "decision:ref-ops-064",
+            at: OPS_AT,
+            event_id: "gae:ref-ops-064",
+          },
+        });
+        return ops.exportEvidenceUnit(evidenceId);
+      }
+      const a = await run();
+      const b = await run();
+      check.equal("deterministic export", a, b);
+    },
+  },
+  {
+    fixture_id: "REF-OPS-065",
+    title: "AI Grade raise rejected with Core F5; head unchanged",
+    scenario: "invalid",
+    authorities: ["OPS-001", "SCI-003"],
+    expectation: { outcome: "failure", failure_code: "F5" },
+    async execute() {
+      const ops = makeOps("persist-sess:ref-ops-065");
+      const evidenceId = "evidence:ref-ops-065";
+      await ops.registerEvidenceUnit(
+        evidenceInput(evidenceId, {
+          source: {
+            source_class: "literature_venue",
+            source_locator: "doi://10.1000/ref-ops-065",
+            source_state: "declared",
+          },
+        }),
+      );
+      await ops.assignEvidenceGrade({
+        identity: evidenceId,
+        revision_id: "rev:grade-raise",
+        expected_head_revision_id: "rev:initial",
+        assignment: {
+          label: "literature_secondary",
+          authority_agent: "ai:ref-ops-agent",
+          reason: "AI raise attempt",
+          decision_ref: "decision:ref-ops-065",
+          at: OPS_AT,
+          event_id: "gae:ref-ops-065",
+        },
+      });
+    },
+  },
+  {
+    fixture_id: "REF-OPS-066",
+    title: "Missing Evidence Grade assign propagates NOT_FOUND",
+    scenario: "invalid",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "failure", failure_code: "NOT_FOUND" },
+    async execute() {
+      const ops = makeOps("persist-sess:ref-ops-066");
+      await ops.assignEvidenceGrade({
+        identity: "evidence:ref-ops-066-missing",
+        revision_id: "rev:grade-1",
+        expected_head_revision_id: "rev:initial",
+        assignment: {
+          label: "model_output_only",
+          authority_agent: OPS_HUMAN,
+          reason: "missing",
+          decision_ref: "decision:ref-ops-066",
+          at: OPS_AT,
+          event_id: "gae:ref-ops-066",
+        },
+      });
+    },
+  },
+  {
+    fixture_id: "REF-OPS-067",
+    title: "Stale Evidence RevisionHead CAS rejects Grade assign with CONFLICT",
+    scenario: "invalid",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "failure", failure_code: "CONFLICT" },
+    async execute() {
+      const ops = makeOps("persist-sess:ref-ops-067");
+      const evidenceId = "evidence:ref-ops-067";
+      await ops.registerEvidenceUnit(evidenceInput(evidenceId));
+      await ops.assignEvidenceGrade({
+        identity: evidenceId,
+        revision_id: "rev:grade-1",
+        expected_head_revision_id: "rev:initial",
+        assignment: {
+          label: "model_output_only",
+          authority_agent: OPS_HUMAN,
+          reason: "first",
+          decision_ref: "decision:ref-ops-067-a",
+          at: OPS_AT,
+          event_id: "gae:ref-ops-067-a",
+        },
+      });
+      await ops.assignEvidenceGrade({
+        identity: evidenceId,
+        revision_id: "rev:grade-stale",
+        expected_head_revision_id: "rev:initial",
+        assignment: {
+          label: "registered_primary_data",
+          authority_agent: OPS_HUMAN,
+          reason: "stale",
+          decision_ref: "decision:ref-ops-067-b",
+          at: OPS_AT,
+          event_id: "gae:ref-ops-067-b",
+        },
+      });
+    },
+  },
+  {
+    fixture_id: "REF-OPS-068",
+    title: "Duplicate Grade revision_id rejects with ALREADY_EXISTS",
+    scenario: "invalid",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "failure", failure_code: "ALREADY_EXISTS" },
+    async execute() {
+      const ops = makeOps("persist-sess:ref-ops-068");
+      const evidenceId = "evidence:ref-ops-068";
+      await ops.registerEvidenceUnit(evidenceInput(evidenceId));
+      const result = await ops.assignEvidenceGrade({
+        identity: evidenceId,
+        revision_id: "rev:grade-1",
+        expected_head_revision_id: "rev:initial",
+        assignment: {
+          label: "model_output_only",
+          authority_agent: OPS_HUMAN,
+          reason: "first",
+          decision_ref: "decision:ref-ops-068",
+          at: OPS_AT,
+          event_id: "gae:ref-ops-068",
+        },
+      });
+      await ops.repository.create(result.entity);
+    },
+  },
+  {
+    fixture_id: "REF-OPS-069",
+    title: "Evidence export head reflects new grade_ref; prior revision differs",
+    scenario: "valid",
+    authorities: ["OPS-001", "SER-JSON-001"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-069");
+      const evidenceId = "evidence:ref-ops-069";
+      await ops.registerEvidenceUnit(evidenceInput(evidenceId));
+      await ops.assignEvidenceGrade({
+        identity: evidenceId,
+        revision_id: "rev:grade-1",
+        expected_head_revision_id: "rev:initial",
+        assignment: {
+          label: "model_output_only",
+          authority_agent: OPS_HUMAN,
+          reason: "REF-OPS-069",
+          decision_ref: "decision:ref-ops-069",
+          at: OPS_AT,
+          event_id: "gae:ref-ops-069",
+        },
+      });
+      const headExport = await ops.exportEvidenceUnit(evidenceId);
+      const newRev = await ops.exportEvidenceUnitRevision(
+        evidenceId,
+        "rev:grade-1",
+      );
+      const oldExport = await ops.exportEvidenceUnitRevision(
+        evidenceId,
+        "rev:initial",
+      );
+      check.equal("head equals new rev", headExport, newRev);
+      check.ok("old differs", headExport !== oldExport);
+      check.ok(
+        "head graded",
+        headExport.includes("SCI-003@0.1.0:model_output_only"),
+      );
+      check.ok("old deferred", oldExport.includes("deferred_sci003"));
+    },
+  },
+  {
+    fixture_id: "REF-OPS-070",
+    title: "Snapshot contains prior+new Evidence revisions and RevisionHead after Grade",
+    scenario: "valid",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-070");
+      const evidenceId = "evidence:ref-ops-070";
+      const session = ops.openSession({
+        research_session_id: "research:session:ref-ops-070",
+      });
+      await ops.registerEvidenceUnit(evidenceInput(evidenceId));
+      ops.registerMember(session, {
+        entity_kind: "CanonicalUnit",
+        unit_kind: "EvidenceUnit",
+        identity: evidenceId,
+      });
+      await ops.assignEvidenceGrade({
+        identity: evidenceId,
+        revision_id: "rev:grade-1",
+        expected_head_revision_id: "rev:initial",
+        assignment: {
+          label: "model_output_only",
+          authority_agent: OPS_HUMAN,
+          reason: "REF-OPS-070",
+          decision_ref: "decision:ref-ops-070",
+          at: OPS_AT,
+          event_id: "gae:ref-ops-070",
+        },
+      });
+      const snap = await ops.snapshotView(session);
+      const keys = snap.persistence_snapshot.entities.map((e) => e.storage_key);
+      check.ok(
+        "initial rev",
+        keys.some((k) => k.includes(":rev:initial")),
+      );
+      check.ok(
+        "grade rev",
+        keys.some((k) => k.includes(":rev:grade-1")),
+      );
+      check.ok(
+        "RevisionHead",
+        keys.some((k) => k.includes("persist:RevisionHead:EvidenceUnit:")),
+      );
+      check.ok(
+        "no GradeDesignationUnit",
+        !keys.some((k) => k.includes("GradeDesignationUnit")),
+      );
+    },
+  },
+  {
+    fixture_id: "REF-OPS-071",
+    title: "Optional ops.evidence_grade_assignment_revision event after successful CAS",
+    scenario: "valid",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-071");
+      const evidenceId = "evidence:ref-ops-071";
+      await ops.registerEvidenceUnit(evidenceInput(evidenceId));
+      const r = await ops.assignEvidenceGrade({
+        identity: evidenceId,
+        revision_id: "rev:grade-1",
+        expected_head_revision_id: "rev:initial",
+        append_event: true,
+        assignment: {
+          label: "model_output_only",
+          authority_agent: OPS_HUMAN,
+          reason: "REF-OPS-071",
+          decision_ref: "decision:ref-ops-071",
+          at: OPS_AT,
+          event_id: "gae:ref-ops-071",
+        },
+      });
+      const events = await ops.getEvents(evidenceId);
+      const hit = events.find(
+        (e) => e.event_type === "ops.evidence_grade_assignment_revision",
+      );
+      check.ok("event present", hit !== undefined);
+      check.equal("event_id", hit!.event_id, "ops:gae:ref-ops-071");
+      check.equal(
+        "to_grade_ref",
+        (hit!.payload as { to_grade_ref: string }).to_grade_ref,
+        r.evidence.grade_ref,
+      );
+    },
+  },
+  {
+    fixture_id: "REF-OPS-072",
+    title: "Grade assign does not create GradeDesignationUnit head",
+    scenario: "valid",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-072");
+      const evidenceId = "evidence:ref-ops-072";
+      await ops.registerEvidenceUnit(evidenceInput(evidenceId));
+      await ops.assignEvidenceGrade({
+        identity: evidenceId,
+        revision_id: "rev:grade-1",
+        expected_head_revision_id: "rev:initial",
+        assignment: {
+          label: "model_output_only",
+          authority_agent: OPS_HUMAN,
+          reason: "REF-OPS-072",
+          decision_ref: "decision:ref-ops-072",
+          at: OPS_AT,
+          event_id: "gae:ref-ops-072",
+        },
+      });
+      try {
+        await ops.repository.getHead(evidenceId, "GradeDesignationUnit");
+        check.ok("GradeDesignationUnit head must not exist", false);
+      } catch (e) {
+        check.ok(
+          "NOT_FOUND",
+          e instanceof PersistenceError && e.code === "NOT_FOUND",
+        );
+      }
+      const evHead = await ops.getEvidenceHead(evidenceId);
+      check.equal("Evidence head", evHead.content_version, "rev:grade-1");
+    },
+  },
+  {
+    fixture_id: "REF-OPS-073",
+    title: "Prior Evidence revision immutable after Grade assignment",
+    scenario: "valid",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-073");
+      const evidenceId = "evidence:ref-ops-073";
+      await ops.registerEvidenceUnit(evidenceInput(evidenceId));
+      const before = await ops.exportEvidenceUnitRevision(
+        evidenceId,
+        "rev:initial",
+      );
+      await ops.assignEvidenceGrade({
+        identity: evidenceId,
+        revision_id: "rev:grade-1",
+        expected_head_revision_id: "rev:initial",
+        assignment: {
+          label: "model_output_only",
+          authority_agent: OPS_HUMAN,
+          reason: "REF-OPS-073",
+          decision_ref: "decision:ref-ops-073",
+          at: OPS_AT,
+          event_id: "gae:ref-ops-073",
+        },
+      });
+      const after = await ops.exportEvidenceUnitRevision(
+        evidenceId,
+        "rev:initial",
+      );
+      check.equal("prior unchanged", before, after);
+    },
+  },
+  {
+    fixture_id: "REF-OPS-074",
+    title: "Invalid grade_ref encoding rejected with Core F1",
+    scenario: "invalid",
+    authorities: ["OPS-001", "SCI-003"],
+    expectation: { outcome: "failure", failure_code: "F1" },
+    async execute() {
+      const ops = makeOps("persist-sess:ref-ops-074");
+      const evidenceId = "evidence:ref-ops-074";
+      await ops.registerEvidenceUnit(evidenceInput(evidenceId));
+      await ops.assignEvidenceGrade({
+        identity: evidenceId,
+        revision_id: "rev:grade-bad",
+        expected_head_revision_id: "rev:initial",
+        assignment: {
+          to_grade_ref: "not-a-valid-grade-ref",
+          authority_agent: OPS_HUMAN,
+          reason: "bad ref",
+          decision_ref: "decision:ref-ops-074",
+          at: OPS_AT,
+          event_id: "gae:ref-ops-074",
+        },
+      });
+    },
+  },
+  {
+    fixture_id: "REF-OPS-075",
+    title: "Membership unchanged by Grade assignment; workspace snapshot coherent",
+    scenario: "valid",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-075");
+      const evidenceId = "evidence:ref-ops-075";
+      const ws = ops.openWorkspace({
+        research_workspace_id: "workspace:ref-ops-075",
+      });
+      await ops.registerEvidenceUnit(evidenceInput(evidenceId));
+      ops.registerWorkspaceMember(ws, {
+        entity_kind: "CanonicalUnit",
+        unit_kind: "EvidenceUnit",
+        identity: evidenceId,
+      });
+      const before = ws.members().length;
+      await ops.assignEvidenceGrade({
+        identity: evidenceId,
+        revision_id: "rev:grade-1",
+        expected_head_revision_id: "rev:initial",
+        assignment: {
+          label: "model_output_only",
+          authority_agent: OPS_HUMAN,
+          reason: "REF-OPS-075",
+          decision_ref: "decision:ref-ops-075",
+          at: OPS_AT,
+          event_id: "gae:ref-ops-075",
+        },
+      });
+      check.equal("membership unchanged", ws.members().length, before);
+      const snap = await ops.workspaceSnapshotView(ws);
+      check.equal("workspace id", snap.research_workspace_id, "workspace:ref-ops-075");
+      check.equal("member_refs", snap.member_refs.length, 1);
+    },
+  },
+  {
+    fixture_id: "REF-OPS-076",
+    title: "Record State then Grade assignment coexist under Model C",
+    scenario: "valid",
+    authorities: ["OPS-001", "SCI-002", "SCI-003"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-076");
+      const evidenceId = "evidence:ref-ops-076";
+      await ops.registerEvidenceUnit(evidenceInput(evidenceId));
+      await ops.transitionEvidenceRecordState({
+        identity: evidenceId,
+        revision_id: "rev:record-registered-1",
+        expected_head_revision_id: "rev:initial",
+        transition: {
+          to: "registered",
+          authority_agent: OPS_HUMAN,
+          reason: "REF-OPS-076 register",
+          decision_ref: "decision:ref-ops-076-rs",
+          at: OPS_AT,
+          event_id: "erte:ref-ops-076",
+        },
+      });
+      const r = await ops.assignEvidenceGrade({
+        identity: evidenceId,
+        revision_id: "rev:grade-1",
+        expected_head_revision_id: "rev:record-registered-1",
+        assignment: {
+          label: "model_output_only",
+          authority_agent: OPS_HUMAN,
+          reason: "REF-OPS-076 grade",
+          decision_ref: "decision:ref-ops-076-g",
+          at: OPS_AT,
+          event_id: "gae:ref-ops-076",
+        },
+      });
+      check.equal("record_state", r.evidence.record_state, "registered");
+      check.equal(
+        "grade_ref",
+        r.evidence.grade_ref,
+        "SCI-003@0.1.0:model_output_only",
+      );
+      check.equal("head", r.head_revision_id, "rev:grade-1");
+      const lineage = await ops.getEvidenceLineage(evidenceId);
+      check.equal("three revisions", lineage.length, 3);
+    },
+  },
 ]);
 

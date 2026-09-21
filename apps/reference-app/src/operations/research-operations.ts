@@ -1,20 +1,23 @@
 /**
- * ResearchOperations — OPS orchestration façade (SPEC-016A / SPEC-018 / SPEC-019 / SPEC-020 / SPEC-021).
+ * ResearchOperations — OPS orchestration façade (SPEC-016A / SPEC-018 / SPEC-019 / SPEC-020 / SPEC-021 / SPEC-022).
  * Orchestrates Core → ENC → Persistence → SER. Does not author scientific meaning.
  * Sprint 020: Model C + Claim Standing post-persist.
  * Sprint 021: Evidence Record State post-persist (Model C).
+ * Sprint 022: Evidence Grade assignment post-persist (Model C).
  */
 
 import {
   ClaimFactory,
   ClaimTransitionService,
   EvidenceFactory,
+  EvidenceGradeService,
   EvidenceTransitionService,
   type Claim,
   type CreateClaimInput,
   type CreateEvidenceInput,
   type Evidence,
   type EvidenceRecordTransitionInput,
+  type GradeAssignmentInput,
   type StandingTransitionInput,
 } from "@sciros/core";
 import { CanonicalEncoder, type CanonicalUnit } from "@sciros/encoding";
@@ -52,6 +55,7 @@ export interface ResearchOperationsDeps {
   readonly claimTransitions: ClaimTransitionService;
   readonly evidenceFactory: EvidenceFactory;
   readonly evidenceTransitions: EvidenceTransitionService;
+  readonly evidenceGrades: EvidenceGradeService;
   readonly encoder: CanonicalEncoder;
   readonly jsonEncoder: JsonEncoder;
   /** Infrastructure PersistenceSession — distinct from ResearchSession. */
@@ -123,6 +127,24 @@ export interface TransitionEvidenceRecordStateResult {
   readonly head_revision_id: string;
 }
 
+export interface AssignEvidenceGradeInput {
+  readonly identity: string;
+  readonly assignment: GradeAssignmentInput;
+  /** New immutable revision id (caller-supplied rev:…). */
+  readonly revision_id: string;
+  /** Expected current RevisionHead pointer (CAS). */
+  readonly expected_head_revision_id: string;
+  /** When true, append ops.evidence_grade_assignment_revision operational event. */
+  readonly append_event?: boolean;
+}
+
+export interface AssignEvidenceGradeResult {
+  readonly evidence: Evidence;
+  readonly unit: CanonicalUnit;
+  readonly entity: PersistenceEntity;
+  readonly head_revision_id: string;
+}
+
 export type EvidenceLineageEntry = ClaimLineageEntry;
 
 export class ResearchOperations {
@@ -130,6 +152,7 @@ export class ResearchOperations {
   private readonly claimTransitions: ClaimTransitionService;
   private readonly evidenceFactory: EvidenceFactory;
   private readonly evidenceTransitions: EvidenceTransitionService;
+  private readonly evidenceGrades: EvidenceGradeService;
   private readonly encoder: CanonicalEncoder;
   private readonly jsonEncoder: JsonEncoder;
   private readonly persistenceSession: PersistenceSession;
@@ -141,6 +164,7 @@ export class ResearchOperations {
     this.claimTransitions = deps.claimTransitions;
     this.evidenceFactory = deps.evidenceFactory;
     this.evidenceTransitions = deps.evidenceTransitions;
+    this.evidenceGrades = deps.evidenceGrades;
     this.encoder = deps.encoder;
     this.jsonEncoder = deps.jsonEncoder;
     this.persistenceSession = deps.persistenceSession;
@@ -381,6 +405,75 @@ export class ResearchOperations {
   }
 
   /**
+   * Post-persist Evidence Grade assignment (Model C / SPEC-022 Option A).
+   * Core EvidenceGradeService.assign → ENC EvidenceUnit → create → advanceHead CAS.
+   * Does NOT persist GradeDesignationUnit. Does NOT mutate membership / Record State / Standing.
+   * Partial-write: if advanceHead fails after create, revision row may exist without becoming head.
+   */
+  async assignEvidenceGrade(
+    input: AssignEvidenceGradeInput,
+  ): Promise<AssignEvidenceGradeResult> {
+    assertRevisionId(input.revision_id);
+    assertRevisionId(input.expected_head_revision_id, "expected_head_revision_id");
+    if (input.revision_id === INITIAL_REVISION_ID) {
+      throw new OpsError(
+        "INVALID_COMMAND_STATE",
+        "assignEvidenceGrade revision_id must not be rev:initial",
+      );
+    }
+    if (input.revision_id === input.expected_head_revision_id) {
+      throw new OpsError(
+        "INVALID_COMMAND_STATE",
+        "revision_id must differ from expected_head_revision_id",
+      );
+    }
+
+    const priorEntity = await this.getEvidenceUnit(input.identity);
+    const priorEvidence = evidenceFromEvidenceUnitPayload(priorEntity.payload);
+    const evidence = this.evidenceGrades.assign(priorEvidence, input.assignment);
+    const unit = await this.encoder.assemble(evidence);
+
+    const entity = entityFromCanonicalUnit(unit, {
+      revision_id: input.revision_id,
+      predecessor_revision_id: input.expected_head_revision_id,
+    });
+    const stored = await this.repository.create(entity);
+
+    const head = await this.repository.advanceHead(
+      input.identity,
+      "EvidenceUnit",
+      input.expected_head_revision_id,
+      input.revision_id,
+    );
+
+    if (input.append_event === true) {
+      const event_id =
+        input.assignment.event_id !== undefined
+          ? `ops:${input.assignment.event_id}`
+          : `ops:evidence_grade:${input.identity}:${input.revision_id}`;
+      await this.repository.appendEvent(input.identity, {
+        event_id,
+        parent_identity: input.identity,
+        event_type: "ops.evidence_grade_assignment_revision",
+        payload: Object.freeze({
+          revision_id: input.revision_id,
+          predecessor_revision_id: input.expected_head_revision_id,
+          unit_kind: "EvidenceUnit",
+          to_grade_ref: evidence.grade_ref,
+        }),
+        ordinal: 0,
+      });
+    }
+
+    return {
+      evidence,
+      unit,
+      entity: stored,
+      head_revision_id: head.content_version,
+    };
+  }
+
+  /**
    * Explicit Persistence.appendEvent — sole event journal (SPEC-016A P-016-004).
    * Caller must supply deterministic event_id. Lower-layer errors propagate unchanged.
    */
@@ -604,6 +697,7 @@ export function createResearchOperations(
     claimTransitions: new ClaimTransitionService(),
     evidenceFactory: new EvidenceFactory(),
     evidenceTransitions: new EvidenceTransitionService(),
+    evidenceGrades: new EvidenceGradeService(),
     encoder: new CanonicalEncoder(),
     jsonEncoder: new JsonEncoder(),
     persistenceSession,

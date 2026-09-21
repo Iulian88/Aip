@@ -1,0 +1,114 @@
+{
+  "sprint": 22,
+  "subject": "Grade OPS",
+  "scope": "Post-persist Evidence Grade assignment OPS orchestration via Model C; Core-owned EG-0.1 Grade semantics via EvidenceGradeService.assign; Option A (EvidenceUnit + grade_ref authoritative); no GradeDesignationUnit dual-write; no Grade lifecycle; no Contradiction/NR/Verification OPS",
+  "spec": "SPEC-022 v0.1.0-DRAFT (audited)",
+  "architecture": {
+    "model": "Model C",
+    "model_description": "Stable Scientific Identity + Immutable Revisions + RevisionHead + CAS head advancement",
+    "option": "OPTION A",
+    "option_description": "EvidenceUnit + grade_ref is the sole authoritative graded representation; GradeDesignationUnit not created/advanced on OPS assign path",
+    "revision_key": "persist:CanonicalUnit:{unit_kind}:{scientific_identity}:{revision_id}",
+    "initial_revision": "rev:initial",
+    "subsequent_revision": "caller-supplied rev:…",
+    "lineage": "PersistenceEntity.predecessor_revision_id = expected_head_revision_id",
+    "revision_head_key": "persist:RevisionHead:EvidenceUnit:{identity}",
+    "head_advancement": "advanceHead (replace + expected_version CAS)",
+    "scientific_authority": "Scientific Core EvidenceGradeService.assign (SCI-003 EG-0.1)",
+    "ops_api": "assignEvidenceGrade",
+    "decoder": "evidenceFromEvidenceUnitPayload",
+    "encoder": "CanonicalEncoder.assemble (EvidenceUnit)",
+    "operational_event": "ops.evidence_grade_assignment_revision (optional; operational only)",
+    "chain": "OPS → REF-OPS → ReferenceRunner → ReferenceReport → ConformanceEngine(profile) → ConformanceReport(profile_id) → CertificationEngine → Certificate",
+    "conformance_engines": 1,
+    "certification_engines": 1
+  },
+  "audit": {
+    "architecture_audit": "ARCHITECTURE-AUDIT-022 / FINAL-ARCHITECTURE-RE-AUDIT-022 APPROVED WITH OBSERVATIONS",
+    "code_audit": "CODE-AUDIT-022 VERIFIED WITH OBSERVATIONS",
+    "required_patches": 0,
+    "blockers": 0
+  },
+  "execution": {
+    "status": "COMPLETE WITH OBSERVATIONS",
+    "path": "getEvidenceUnit(head) → evidenceFromEvidenceUnitPayload → EvidenceGradeService.assign → CanonicalEncoder.assemble → Persistence.create revision → RevisionHead CAS → optional appendEvent"
+  },
+  "corpora": {
+    "REF_CORPUS_SCI": 44,
+    "REF_CORPUS_OPS": 76,
+    "REF_CORPUS_FULL": 120,
+    "sci_pass": 44,
+    "ops_pass": 76,
+    "full_pass": 120,
+    "grade_ops_fixtures": "REF-OPS-062…REF-OPS-076"
+  },
+  "sci": {
+    "profile_id": "CONF-001@1.0.0",
+    "corpus": "REF-CORPUS-SCI",
+    "conformance_overall": "COMPLIANT",
+    "certification_decision": "CERTIFIED",
+    "certificate_id": "cert:sess-sprint-022-formal-sci:sciros-reference-test-suite:certified",
+    "scope": [
+      "SCI-000",
+      "SCI-001",
+      "SCI-002",
+      "SCI-003",
+      "SCI-004",
+      "SCI-005",
+      "SCI-006",
+      "ENC-001",
+      "SER-001",
+      "SER-JSON-001",
+      "RPR-001",
+      "ADR-0006",
+      "CONF-001"
+    ]
+  },
+  "ops": {
+    "profile_id": "CONF-001@1.1.0-OPS",
+    "corpus": "REF-CORPUS-FULL",
+    "ops_authoring_corpus": "REF-CORPUS-OPS",
+    "conformance_overall": "COMPLIANT",
+    "certification_decision": "CERTIFIED",
+    "certificate_id": "cert:sess-sprint-022-formal-ops:sciros-full-reference-corpus:certified",
+    "scope": [
+      "SCI-000",
+      "SCI-001",
+      "SCI-002",
+      "SCI-003",
+      "SCI-004",
+      "SCI-005",
+      "SCI-006",
+      "ENC-001",
+      "SER-001",
+      "SER-JSON-001",
+      "RPR-001",
+      "ADR-0006",
+      "CONF-001",
+      "OPS-001"
+    ]
+  },
+  "regression": {
+    "TEST-016": "10/10 PASS",
+    "TEST-017": "12/12 PASS",
+    "TEST-018": "10/10 PASS",
+    "TEST-019": "10/10 PASS",
+    "TEST-020": "22/22 PASS (T020-022 invalid revision identity rejected)",
+    "TEST-021": "15/15 PASS",
+    "TEST-022": "7/7 PASS",
+    "smoke": "smoke-017 / smoke-019 / smoke-020 / smoke-021 / smoke-022 PASS",
+    "typecheck": "PASS",
+    "lint": "PASS",
+    "build": "PASS"
+  },
+  "observations_non_blocking": [
+    "O-CA-022-01: ResearchOperationsDeps now requires evidenceGrades; legacy smoke-016 manual construction pre-existing pattern; Grade path uses createResearchOperations",
+    "O-CA-022-02: Partial-write orphan after create + CAS failure remains authorized Model C honesty (T022-006)",
+    "O-CA-022-03: Core GAE randomUUID fallback if event_id omitted — certified paths supply gae: event_id; Core not modified",
+    "O-CA-022-04: Sprint 022 design docs remain untracked alongside EXEC delta pending Git closure",
+    "O-CERT-022-01: smoke-019 regenerates SMOKE_019_PASS with current corpus counts; marker restored to HEAD content after PASS verification (historical artifact unchanged)"
+  ],
+  "formal_status": "CERTIFIED",
+  "closure": "PENDING_GIT_CLOSURE",
+  "note": "Engine CertificationDecision CERTIFIED for SCI and OPS; non-blocking observations recorded separately. Sprint not closed until final Git commit+push."
+}

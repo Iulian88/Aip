@@ -1,10 +1,10 @@
 /**
  * @sciros/reference-app — Research Operations / OPS shell.
  * Sprint 016 Claim + Sprint 018 Workspace + Sprint 019 Evidence + Sprint 020 Model C
- * + Sprint 021 Evidence Record State post-persist.
+ * + Sprint 021 Evidence Record State post-persist + Sprint 022 Grade OPS.
  * Orchestrates Core → ENC → Persistence → SER. Does NOT author scientific meaning.
  *
- * SPEC-016A · SPEC-018 · SPEC-019 · SPEC-020 · SPEC-021
+ * SPEC-016A · SPEC-018 · SPEC-019 · SPEC-020 · SPEC-021 · SPEC-022
  */
 
 export { OpsError, isOpsError, type OpsErrorCode } from "./errors/ops-error.js";
@@ -33,6 +33,8 @@ export {
   type TransitionClaimStandingResult,
   type TransitionEvidenceRecordStateInput,
   type TransitionEvidenceRecordStateResult,
+  type AssignEvidenceGradeInput,
+  type AssignEvidenceGradeResult,
   type ClaimLineageEntry,
   type EvidenceLineageEntry,
 } from "./operations/research-operations.js";
@@ -51,7 +53,7 @@ export {
 
 export interface ReferenceAppMarker {
   readonly packageId: "@sciros/reference-app";
-  readonly sprint: 21;
+  readonly sprint: 22;
   readonly duplicatesProcessorLogic: false;
   readonly researchSessionPersisted: false;
   readonly researchWorkspacePersisted: false;
@@ -61,7 +63,7 @@ export interface ReferenceAppMarker {
 
 export const referenceAppMarker: ReferenceAppMarker = {
   packageId: "@sciros/reference-app",
-  sprint: 21,
+  sprint: 22,
   duplicatesProcessorLogic: false,
   researchSessionPersisted: false,
   researchWorkspacePersisted: false,

@@ -1,0 +1,7 @@
+PASS marker
+PASS grade-ops
+PASS determinism
+PASS event
+PASS option-a-no-grade-designation-unit
+PASS corpus SCI=44 OPS=76 FULL=120
+PASS conformance

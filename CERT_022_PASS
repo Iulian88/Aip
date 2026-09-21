@@ -1,0 +1,17 @@
+SPRINT-022 FORMALLY CERTIFIED
+audit=CODE-AUDIT-022 VERIFIED WITH OBSERVATIONS
+architecture_audit=ARCHITECTURE-AUDIT-022 / FINAL-ARCHITECTURE-RE-AUDIT-022 APPROVED WITH OBSERVATIONS
+required_patches=0
+blockers=0
+sci_decision=CERTIFIED
+ops_decision=CERTIFIED
+sci_certificate_id=cert:sess-sprint-022-formal-sci:sciros-reference-test-suite:certified
+ops_certificate_id=cert:sess-sprint-022-formal-ops:sciros-full-reference-corpus:certified
+sci_profile=CONF-001@1.0.0
+ops_profile=CONF-001@1.1.0-OPS
+sci_corpus=REF-CORPUS-SCI count=44
+ops_evidence_corpus=REF-CORPUS-FULL count=120
+ops_authoring_corpus=REF-CORPUS-OPS count=76
+architecture=Model C + Option A
+subject=Grade OPS
+closure=PENDING_GIT_CLOSURE
