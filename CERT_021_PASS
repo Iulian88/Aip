@@ -1,0 +1,17 @@
+SPRINT-021 FORMALLY CERTIFIED
+audit=CODE-AUDIT-021 APPROVED WITH OBSERVATIONS
+architecture_audit=SPEC-021 / FINAL-ARCHITECTURE-RE-AUDIT-021 APPROVED WITH OBSERVATIONS
+required_patches=0
+blockers=0
+sci_decision=CERTIFIED
+ops_decision=CERTIFIED
+sci_certificate_id=cert:sess-sprint-021-formal-sci:sciros-reference-test-suite:certified
+ops_certificate_id=cert:sess-sprint-021-formal-ops:sciros-full-reference-corpus:certified
+sci_profile=CONF-001@1.0.0
+ops_profile=CONF-001@1.1.0-OPS
+sci_corpus=REF-CORPUS-SCI count=44
+ops_evidence_corpus=REF-CORPUS-FULL count=105
+ops_authoring_corpus=REF-CORPUS-OPS count=61
+architecture=Model C
+subject=Evidence Post-Persist Record State OPS
+closure=PENDING_GIT_CLOSURE

@@ -1,38 +1,29 @@
 # SciROS Reference Implementation
 
-**Sprint:** EXEC-SPRINT-020 · Model C Post-Persist Scientific Transition  
-**Status:** **FORMALLY CERTIFIED AND CLOSED** (CODE-AUDIT-020: APPROVED WITH OBSERVATIONS; required patches: 0)
+**Sprint:** EXEC-SPRINT-021 · Evidence Post-Persist Record State OPS  
+**Status:** **IMPLEMENTATION COMPLETE** (pending CODE-AUDIT-021; not formally certified by this EXEC)
 
 | Field | Value |
 |-------|--------|
-| Implementation | COMPLETE |
-| Architecture Audit | SPEC-020 / FINAL-ARCHITECTURE-RE-AUDIT-020 APPROVED WITH OBSERVATIONS |
-| Independent Code Audit | CODE-AUDIT-020 — APPROVED WITH OBSERVATIONS |
-| Required Patches | NONE |
-| Formal Certification | CERTIFIED |
-| Closure | COMPLETE |
-| Architecture | ADR-020 Model C · SPEC-020 v0.3.0-DRAFT · IMPLEMENTATION-DECISION-020 |
+| Implementation | COMPLETE WITH OBSERVATIONS |
+| Architecture | SPEC-021 · IMPLEMENTATION-DECISION-021 · FINAL-ARCHITECTURE-RE-AUDIT-021 APPROVED WITH OBSERVATIONS |
 | SCI profile | `CONF-001@1.0.0` |
 | OPS profile | `CONF-001@1.1.0-OPS` |
-| Engine CertificationDecision (SCI) | `CERTIFIED` |
-| Engine CertificationDecision (OPS) | `CERTIFIED` |
-| Certification artifacts | `fixtures/cert/SPRINT-020_*.json`, `CERT_020_PASS` |
-| Corpora | SCI 44/44 · OPS 46/46 · FULL 90/90 |
+| Corpora (live) | SCI 44/44 · OPS 61/61 · FULL 105/105 |
+| Prior certified baseline | Sprint 020 @ `6c0106c` — FORMALLY CERTIFIED AND CLOSED |
 
-Non-blocking observations from CODE-AUDIT-020 (O-020-01…O-020-07) remain recorded; they were not eliminated.
-
-Prior: Sprint 019 FORMALLY CERTIFIED AND CLOSED.
+Prior: Sprint 020 FORMALLY CERTIFIED AND CLOSED (Model C + Claim Standing).
 
 | Field | Value |
 |-------|--------|
-| SPEC | SPEC-020 v0.3.0-DRAFT |
-| ADR | ADR-020 Model C |
-| Slice | Persistence Model C + Claim Standing post-persist + Evidence initial revision |
-| Revision model | Stable scientific identity + immutable revisions + RevisionHead |
+| SPEC | SPEC-021 v0.1.0-DRAFT |
+| Slice | Evidence Record State post-persist OPS (`transitionEvidenceRecordState`) |
+| Vocabulary | Core `draft \| registered \| withdrawn` only |
+| Revision model | Certified Model C (unchanged) |
 | Initial revision | `rev:initial` |
 | Later revisions | Caller-supplied `rev:…` |
 | Lineage | `PersistenceEntity.predecessor_revision_id` |
-| Head | `persist:RevisionHead:{unit_kind}:{identity}` · CAS via `replace` + `expected_version` |
+| Head | `persist:RevisionHead:EvidenceUnit:{identity}` · CAS via `advanceHead` |
 
 ## Commands
 
@@ -52,6 +43,8 @@ node scripts/test-019-evidence-operations.mjs
 node scripts/smoke-019-evidence-operations.mjs
 node scripts/test-020-model-c-revision.mjs
 node scripts/smoke-020-model-c-revision.mjs
+node scripts/test-021-evidence-record-state.mjs
+node scripts/smoke-021-evidence-record-state.mjs
 ```
 
 ## Evidence chain (unchanged)
@@ -62,7 +55,42 @@ OPS → REF-OPS → ReferenceRunner → ReferenceReport
     → CertificationEngine → Certificate
 ```
 
-## Sprint 020 — Model C
+## Sprint 021 — Evidence Record State post-persist
+
+### OPS
+
+- `transitionEvidenceRecordState` → Core `EvidenceTransitionService` → ENC → create revision → `advanceHead` CAS → optional `appendEvent`
+- OPS-local decode: `evidenceFromEvidenceUnitPayload` (ERTE vs GAE discrimination)
+- Reads: `getEvidenceUnit` (head), `getEvidenceUnitRevision`, `getEvidenceHead`, `getEvidenceLineage`
+- Export: `exportEvidenceUnit` (head), `exportEvidenceUnitRevision`
+- Event type: `ops.evidence_record_state_revision` (optional; non-authoritative)
+- Pre-persist `registerEvidenceUnit(..., { transition })` preserved (Sprint 019)
+
+### Determinism
+
+- Caller-supplied `revision_id` and ERTE `event_id` (Core may `randomUUID` if ERTE id omitted — callers must supply)
+- Double-run exports match
+
+### Concurrency / partial-write
+
+- Same Model C honesty as Sprint 020: create may succeed while CAS fails → orphan revision; head unchanged
+- No transactions / rollback / delete-on-conflict
+
+### Tests
+
+- `scripts/test-021-evidence-record-state.mjs` (15 assertion tests)
+- `scripts/smoke-021-evidence-record-state.mjs`
+- Additive REF-OPS-047…061
+- Regression: Sprint 016–020 tests + smokes; SCI 44; prior OPS fixtures green
+
+### Limitations / non-goals
+
+- No Grade / Contradiction / Negative Result / Verification OPS
+- No material Evidence content OPS
+- No DB / API / UI / AI / KG / DocumentArtifact
+- ResearchSession / ResearchWorkspace remain memory-only
+
+## Sprint 020 — Model C (certified / closed)
 
 ### Persistence
 
@@ -83,10 +111,10 @@ OPS → REF-OPS → ReferenceRunner → ReferenceReport
 - Export: `exportClaimUnit` (head), `exportClaimUnitRevision`
 - Claim decode from ClaimUnit payload: OPS-local `claimFromClaimUnitPayload`
 
-### Evidence boundary
+### Evidence boundary (Sprint 020)
 
 - Sprint 019 Evidence Operations preserved
-- Sprint 020: **initial revision only** (no Evidence post-persist Record State OPS)
+- Sprint 020 delivered **initial revision**; Sprint 021 adds post-persist Record State
 
 ### Determinism
 
@@ -109,9 +137,8 @@ OPS → REF-OPS → ReferenceRunner → ReferenceReport
 - Additive REF-OPS-037…046
 - Regression: Sprint 016–019 tests + smokes; SCI 44; prior OPS fixtures remain green
 
-### Limitations / non-goals
+### Limitations / non-goals (Sprint 020 historical)
 
-- No Evidence post-persist Record State
 - No Grade / Contradiction / Negative Result / Verification OPS
 - No DB / API / UI / AI / KG / DocumentArtifact ingestion
 - No distributed concurrency claims
@@ -120,4 +147,4 @@ OPS → REF-OPS → ReferenceRunner → ReferenceReport
 ## Sprint 019 IN / OUT (closed)
 
 **IN:** registerEvidenceUnit, getEvidenceUnit, exportEvidenceUnit, REF-OPS-022…036, tests, formal certification.  
-**OUT:** Durable workspace, concurrency, Grade/Contradiction/NR/Verification OPS, literature, DocumentArtifact, AI, UI, DB, post-persist replace.
+**OUT:** Durable workspace, concurrency, Grade/Contradiction/NR/Verification OPS, literature, DocumentArtifact, AI, UI, DB (post-persist Record State delivered in Sprint 021).

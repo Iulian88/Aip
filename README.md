@@ -8,10 +8,29 @@
 
 ## Current status
 
-**Foundation documentation phase (pre-implementation).**  
-This repository currently contains the **research-grade project foundation**: vision, ethics, requirements, architecture, scientific methodology, and engineering process docs. **No scientific implementation code has been written yet**—by design.
+**Certified scientific/research foundation through Sprint 020.**
 
-Start here: **[docs/README.md](docs/README.md)**
+This repository contains:
+
+1. **Governance and product documentation** under [`docs/`](docs/README.md) (vision, ethics, requirements, planned AIP expansion).  
+2. **Certified SciROS reference implementation** (TypeScript monorepo) through **Sprint 020 — Model C Post-Persist Scientific Transition**.
+
+| Field | Value |
+|-------|--------|
+| Latest closed sprint | Sprint 020 — FORMALLY CERTIFIED AND CLOSED |
+| Baseline commit | `6c0106c3e27685f549bc7c2b882a0365c6b511d6` |
+| SCI corpus | 44/44 · profile `CONF-001@1.0.0` |
+| OPS corpus | 46/46 · profile `CONF-001@1.1.0-OPS` |
+| FULL corpus | 90/90 |
+| Implementation status | [`IMPLEMENTATION.md`](IMPLEMENTATION.md) |
+
+**What is implemented (certified kernel):** Scientific Core objects (Claim, Evidence, Grade, Contradiction, Negative Result, Verification), Canonical Encoding, Serialization, Persistence (including Model C immutable revisions + RevisionHead), Research Operations / ResearchSession / ResearchWorkspace, Reference Tests → Conformance → Certification.
+
+**What is not implemented:** durable database, public API/backend, frontend UI, literature/DocumentArtifact ingestion, knowledge graph store, AI runtime, computational mimicry pipelines, clinical systems, simulation / human biology modeling platforms.
+
+Research use only — computational hypotheses, not medical advice. See the [Medical Disclaimer](docs/00-governance/medical-disclaimer.md).
+
+Start here for governance docs: **[docs/README.md](docs/README.md)** · Start here for implementation status: **[IMPLEMENTATION.md](IMPLEMENTATION.md)**
 
 ---
 
@@ -73,15 +92,22 @@ AIP does **not** aim to prove medical hypotheses or act as a clinical system. Se
 
 ---
 
-## Planned repository layout
+## Repository layout
 
-See [docs/03-architecture/folder-structure.md](docs/03-architecture/folder-structure.md). Implementation packages are **reserved/planned**, not present in this foundation drop.
+- **`docs/`** — AIP governance, product, and planned expansion documentation.  
+- **`packages/`** — Certified SciROS packages (`core`, `encoding`, `serialization`, `persistence`, `processor`, `reference-tests`, `conformance`, `certification`, `shared`).  
+- **`apps/reference-app/`** — Research Operations / OPS shell.  
+- **`specs/`** — Scientific and architecture specifications.  
+- **`fixtures/cert/`** — Formal certification artifacts.  
+- **`audits/`** — Architecture, execution, code-audit, and certification records.
+
+Planned broader AIP layout (data plane, pipelines, UI) remains described in [docs/03-architecture/folder-structure.md](docs/03-architecture/folder-structure.md); those planes are **not** part of the Sprint 020 certified kernel.
 
 ---
 
 ## Contributing
 
-Documentation and ADR contributions are welcome. Read [docs/06-process/contributing.md](docs/06-process/contributing.md) and the [Code of Conduct](CODE_OF_CONDUCT.md).
+Documentation and ADR contributions are welcome. Read [docs/06-process/contributing.md](docs/06-process/contributing.md) and the [Code of Conduct](CODE_OF_CONDUCT.md). Implementation changes must preserve certified SciROS authority boundaries (Scientific Core owns scientific meaning; OPS orchestrates only).
 
 ---
 
@@ -93,4 +119,4 @@ License finalization is pending legal review. See [docs/08-reference/license-and
 
 ## Citation
 
-Until a software release exists, cite the documentation foundation tag (when published) and link to this repository’s `/docs`.
+Cite this repository’s certified implementation baseline (Sprint 020 / commit above) and governance docs under `/docs` as appropriate for research use.

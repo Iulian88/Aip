@@ -1,0 +1,1433 @@
+{
+  "authorities": [
+    {
+      "authority": "SCI-000",
+      "error": 0,
+      "fail": 0,
+      "pass": 5,
+      "total": 5,
+      "verdict": "COMPLIANT"
+    },
+    {
+      "authority": "SCI-001",
+      "error": 0,
+      "fail": 0,
+      "pass": 14,
+      "total": 14,
+      "verdict": "COMPLIANT"
+    },
+    {
+      "authority": "SCI-002",
+      "error": 0,
+      "fail": 0,
+      "pass": 18,
+      "total": 18,
+      "verdict": "COMPLIANT"
+    },
+    {
+      "authority": "SCI-003",
+      "error": 0,
+      "fail": 0,
+      "pass": 3,
+      "total": 3,
+      "verdict": "COMPLIANT"
+    },
+    {
+      "authority": "SCI-004",
+      "error": 0,
+      "fail": 0,
+      "pass": 2,
+      "total": 2,
+      "verdict": "COMPLIANT"
+    },
+    {
+      "authority": "SCI-005",
+      "error": 0,
+      "fail": 0,
+      "pass": 2,
+      "total": 2,
+      "verdict": "COMPLIANT"
+    },
+    {
+      "authority": "SCI-006",
+      "error": 0,
+      "fail": 0,
+      "pass": 3,
+      "total": 3,
+      "verdict": "COMPLIANT"
+    },
+    {
+      "authority": "ENC-001",
+      "error": 0,
+      "fail": 0,
+      "pass": 16,
+      "total": 16,
+      "verdict": "COMPLIANT"
+    },
+    {
+      "authority": "SER-001",
+      "error": 0,
+      "fail": 0,
+      "pass": 3,
+      "total": 3,
+      "verdict": "COMPLIANT"
+    },
+    {
+      "authority": "SER-JSON-001",
+      "error": 0,
+      "fail": 0,
+      "pass": 17,
+      "total": 17,
+      "verdict": "COMPLIANT"
+    },
+    {
+      "authority": "RPR-001",
+      "error": 0,
+      "fail": 0,
+      "pass": 5,
+      "total": 5,
+      "verdict": "COMPLIANT"
+    },
+    {
+      "authority": "ADR-0006",
+      "error": 0,
+      "fail": 0,
+      "pass": 4,
+      "total": 4,
+      "verdict": "COMPLIANT"
+    },
+    {
+      "authority": "OPS-001",
+      "error": 0,
+      "fail": 0,
+      "pass": 61,
+      "total": 61,
+      "verdict": "COMPLIANT"
+    }
+  ],
+  "authority": "CONF-001",
+  "dimensions": [
+    {
+      "dimension_id": "authority_compliance",
+      "evidence_refs": [
+        "SCI-000",
+        "SCI-001",
+        "SCI-002",
+        "SCI-003",
+        "SCI-004",
+        "SCI-005",
+        "SCI-006",
+        "ENC-001",
+        "SER-001",
+        "SER-JSON-001",
+        "RPR-001",
+        "ADR-0006",
+        "OPS-001"
+      ],
+      "notes": [],
+      "verdict": "COMPLIANT"
+    },
+    {
+      "dimension_id": "fixture_completeness",
+      "evidence_refs": [
+        "REF-CLAIM-* (7)",
+        "REF-EVID-* (5)",
+        "REF-GRADE-* (3)",
+        "REF-CONTRA-* (2)",
+        "REF-NEGRES-* (2)",
+        "REF-VERIF-* (3)",
+        "REF-CANON-* (7)",
+        "REF-SER-* (7)",
+        "REF-RT-* (3)",
+        "REF-PROC-* (3)",
+        "REF-AUTH-* (2)",
+        "REF-OPS-* (61)"
+      ],
+      "notes": [],
+      "verdict": "COMPLIANT"
+    },
+    {
+      "dimension_id": "scenario_completeness",
+      "evidence_refs": [
+        "valid (51)",
+        "invalid (25)",
+        "transition (8)",
+        "version (2)",
+        "event (5)",
+        "relationship (2)",
+        "authority (4)",
+        "serialization (5)",
+        "processor (3)"
+      ],
+      "notes": [],
+      "verdict": "COMPLIANT"
+    },
+    {
+      "dimension_id": "determinism",
+      "evidence_refs": [
+        "fixture_id order stable",
+        "fixture_id unique",
+        "no ERROR fixtures"
+      ],
+      "notes": [],
+      "verdict": "COMPLIANT"
+    },
+    {
+      "dimension_id": "round_trip_integrity",
+      "evidence_refs": [
+        "REF-RT-001",
+        "REF-RT-002",
+        "REF-RT-003"
+      ],
+      "notes": [],
+      "verdict": "COMPLIANT"
+    },
+    {
+      "dimension_id": "stage_ownership",
+      "evidence_refs": [
+        "REF-PROC-001",
+        "REF-PROC-002",
+        "REF-PROC-003"
+      ],
+      "notes": [],
+      "verdict": "COMPLIANT"
+    },
+    {
+      "dimension_id": "architecture_boundaries",
+      "evidence_refs": [
+        "REF-CANON-*",
+        "REF-SER-*",
+        "REF-PROC-*",
+        "REF-CLAIM-*",
+        "REF-OPS-*",
+        "evidence source REF-TEST-001"
+      ],
+      "notes": [],
+      "verdict": "COMPLIANT"
+    }
+  ],
+  "evidence_source": "REF-TEST-001:ReferenceReport",
+  "observations": [
+    {
+      "assertion_count": 2,
+      "authorities": [
+        "RPR-001",
+        "EXEC-003"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-AUTH-001",
+      "matched_expected": true,
+      "scenario": "authority",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 3,
+      "authorities": [
+        "RPR-001",
+        "EXEC-003"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-AUTH-002",
+      "matched_expected": true,
+      "scenario": "authority",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 5,
+      "authorities": [
+        "ENC-001"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-CANON-001",
+      "matched_expected": true,
+      "scenario": "valid",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 5,
+      "authorities": [
+        "ENC-001"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-CANON-002",
+      "matched_expected": true,
+      "scenario": "valid",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 5,
+      "authorities": [
+        "ENC-001"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-CANON-003",
+      "matched_expected": true,
+      "scenario": "valid",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 5,
+      "authorities": [
+        "ENC-001"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-CANON-004",
+      "matched_expected": true,
+      "scenario": "valid",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 5,
+      "authorities": [
+        "ENC-001"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-CANON-005",
+      "matched_expected": true,
+      "scenario": "valid",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 5,
+      "authorities": [
+        "ENC-001"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-CANON-006",
+      "matched_expected": true,
+      "scenario": "valid",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 1,
+      "authorities": [
+        "ENC-001"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-CANON-007",
+      "matched_expected": true,
+      "scenario": "invalid",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 4,
+      "authorities": [
+        "SCI-001",
+        "SCI-000"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-CLAIM-001",
+      "matched_expected": true,
+      "scenario": "valid",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 1,
+      "authorities": [
+        "SCI-001"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-CLAIM-002",
+      "matched_expected": true,
+      "scenario": "invalid",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 3,
+      "authorities": [
+        "SCI-001",
+        "ADR-0006"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-CLAIM-003",
+      "matched_expected": true,
+      "scenario": "transition",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 1,
+      "authorities": [
+        "SCI-001",
+        "ADR-0006"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-CLAIM-004",
+      "matched_expected": true,
+      "scenario": "transition",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 3,
+      "authorities": [
+        "SCI-001"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-CLAIM-005",
+      "matched_expected": true,
+      "scenario": "version",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 1,
+      "authorities": [
+        "SCI-001"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-CLAIM-006",
+      "matched_expected": true,
+      "scenario": "version",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 6,
+      "authorities": [
+        "SCI-001"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-CLAIM-007",
+      "matched_expected": true,
+      "scenario": "event",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 3,
+      "authorities": [
+        "SCI-004",
+        "SCI-000"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-CONTRA-001",
+      "matched_expected": true,
+      "scenario": "valid",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 1,
+      "authorities": [
+        "SCI-004"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-CONTRA-002",
+      "matched_expected": true,
+      "scenario": "invalid",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 4,
+      "authorities": [
+        "SCI-002",
+        "SCI-000"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-EVID-001",
+      "matched_expected": true,
+      "scenario": "valid",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 1,
+      "authorities": [
+        "SCI-002"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-EVID-002",
+      "matched_expected": true,
+      "scenario": "invalid",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 3,
+      "authorities": [
+        "SCI-002",
+        "ADR-0006"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-EVID-003",
+      "matched_expected": true,
+      "scenario": "transition",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 1,
+      "authorities": [
+        "SCI-002"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-EVID-004",
+      "matched_expected": true,
+      "scenario": "transition",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 5,
+      "authorities": [
+        "SCI-002"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-EVID-005",
+      "matched_expected": true,
+      "scenario": "event",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 3,
+      "authorities": [
+        "SCI-003",
+        "SCI-002"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-GRADE-001",
+      "matched_expected": true,
+      "scenario": "valid",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 1,
+      "authorities": [
+        "SCI-003"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-GRADE-002",
+      "matched_expected": true,
+      "scenario": "invalid",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 4,
+      "authorities": [
+        "SCI-003",
+        "ENC-001"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-GRADE-003",
+      "matched_expected": true,
+      "scenario": "relationship",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 3,
+      "authorities": [
+        "SCI-005",
+        "SCI-000"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-NEGRES-001",
+      "matched_expected": true,
+      "scenario": "valid",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 1,
+      "authorities": [
+        "SCI-005"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-NEGRES-002",
+      "matched_expected": true,
+      "scenario": "invalid",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 3,
+      "authorities": [
+        "OPS-001"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-OPS-001",
+      "matched_expected": true,
+      "scenario": "valid",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 2,
+      "authorities": [
+        "OPS-001"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-OPS-002",
+      "matched_expected": true,
+      "scenario": "valid",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 1,
+      "authorities": [
+        "OPS-001"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-OPS-003",
+      "matched_expected": true,
+      "scenario": "invalid",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 6,
+      "authorities": [
+        "OPS-001",
+        "SCI-001",
+        "ENC-001"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-OPS-004",
+      "matched_expected": true,
+      "scenario": "valid",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 1,
+      "authorities": [
+        "OPS-001"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-OPS-005",
+      "matched_expected": true,
+      "scenario": "invalid",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 4,
+      "authorities": [
+        "OPS-001"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-OPS-006",
+      "matched_expected": true,
+      "scenario": "event",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 3,
+      "authorities": [
+        "OPS-001"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-OPS-007",
+      "matched_expected": true,
+      "scenario": "valid",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 1,
+      "authorities": [
+        "OPS-001"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-OPS-008",
+      "matched_expected": true,
+      "scenario": "invalid",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 4,
+      "authorities": [
+        "OPS-001"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-OPS-009",
+      "matched_expected": true,
+      "scenario": "event",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 3,
+      "authorities": [
+        "OPS-001"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-OPS-010",
+      "matched_expected": true,
+      "scenario": "valid",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 4,
+      "authorities": [
+        "OPS-001"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-OPS-011",
+      "matched_expected": true,
+      "scenario": "valid",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 5,
+      "authorities": [
+        "OPS-001",
+        "SER-JSON-001",
+        "SER-001"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-OPS-012",
+      "matched_expected": true,
+      "scenario": "serialization",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 1,
+      "authorities": [
+        "OPS-001"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-OPS-013",
+      "matched_expected": true,
+      "scenario": "valid",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 4,
+      "authorities": [
+        "OPS-001"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-OPS-014",
+      "matched_expected": true,
+      "scenario": "invalid",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 6,
+      "authorities": [
+        "OPS-001"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-OPS-015",
+      "matched_expected": true,
+      "scenario": "authority",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 4,
+      "authorities": [
+        "OPS-001"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-OPS-016",
+      "matched_expected": true,
+      "scenario": "valid",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 2,
+      "authorities": [
+        "OPS-001"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-OPS-017",
+      "matched_expected": true,
+      "scenario": "valid",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 5,
+      "authorities": [
+        "OPS-001"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-OPS-018",
+      "matched_expected": true,
+      "scenario": "valid",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 6,
+      "authorities": [
+        "OPS-001"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-OPS-019",
+      "matched_expected": true,
+      "scenario": "valid",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 1,
+      "authorities": [
+        "OPS-001"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-OPS-020",
+      "matched_expected": true,
+      "scenario": "invalid",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 1,
+      "authorities": [
+        "OPS-001"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-OPS-021",
+      "matched_expected": true,
+      "scenario": "invalid",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 6,
+      "authorities": [
+        "OPS-001",
+        "SCI-002",
+        "ENC-001"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-OPS-022",
+      "matched_expected": true,
+      "scenario": "valid",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 1,
+      "authorities": [
+        "OPS-001"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-OPS-023",
+      "matched_expected": true,
+      "scenario": "invalid",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 3,
+      "authorities": [
+        "OPS-001",
+        "SCI-002"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-OPS-024",
+      "matched_expected": true,
+      "scenario": "valid",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 3,
+      "authorities": [
+        "OPS-001"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-OPS-025",
+      "matched_expected": true,
+      "scenario": "valid",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 2,
+      "authorities": [
+        "OPS-001"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-OPS-026",
+      "matched_expected": true,
+      "scenario": "valid",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 2,
+      "authorities": [
+        "OPS-001"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-OPS-027",
+      "matched_expected": true,
+      "scenario": "valid",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 4,
+      "authorities": [
+        "OPS-001"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-OPS-028",
+      "matched_expected": true,
+      "scenario": "valid",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 3,
+      "authorities": [
+        "OPS-001"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-OPS-029",
+      "matched_expected": true,
+      "scenario": "valid",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 2,
+      "authorities": [
+        "OPS-001",
+        "SER-JSON-001"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-OPS-030",
+      "matched_expected": true,
+      "scenario": "valid",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 3,
+      "authorities": [
+        "OPS-001",
+        "SCI-001",
+        "SCI-002"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-OPS-031",
+      "matched_expected": true,
+      "scenario": "valid",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 3,
+      "authorities": [
+        "OPS-001",
+        "SCI-001",
+        "SCI-002"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-OPS-032",
+      "matched_expected": true,
+      "scenario": "valid",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 3,
+      "authorities": [
+        "OPS-001",
+        "SCI-002"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-OPS-033",
+      "matched_expected": true,
+      "scenario": "valid",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 2,
+      "authorities": [
+        "OPS-001",
+        "SCI-002"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-OPS-034",
+      "matched_expected": true,
+      "scenario": "valid",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 1,
+      "authorities": [
+        "OPS-001"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-OPS-035",
+      "matched_expected": true,
+      "scenario": "invalid",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 1,
+      "authorities": [
+        "OPS-001",
+        "SER-JSON-001"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-OPS-036",
+      "matched_expected": true,
+      "scenario": "valid",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 5,
+      "authorities": [
+        "OPS-001"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-OPS-037",
+      "matched_expected": true,
+      "scenario": "valid",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 5,
+      "authorities": [
+        "OPS-001",
+        "SCI-001"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-OPS-038",
+      "matched_expected": true,
+      "scenario": "transition",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 1,
+      "authorities": [
+        "OPS-001"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-OPS-039",
+      "matched_expected": true,
+      "scenario": "invalid",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 1,
+      "authorities": [
+        "OPS-001"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-OPS-040",
+      "matched_expected": true,
+      "scenario": "invalid",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 1,
+      "authorities": [
+        "OPS-001",
+        "SCI-001"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-OPS-041",
+      "matched_expected": true,
+      "scenario": "invalid",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 3,
+      "authorities": [
+        "OPS-001",
+        "SCI-002"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-OPS-042",
+      "matched_expected": true,
+      "scenario": "valid",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 1,
+      "authorities": [
+        "OPS-001",
+        "SER-JSON-001"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-OPS-043",
+      "matched_expected": true,
+      "scenario": "valid",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 3,
+      "authorities": [
+        "OPS-001"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-OPS-044",
+      "matched_expected": true,
+      "scenario": "valid",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 3,
+      "authorities": [
+        "OPS-001"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-OPS-045",
+      "matched_expected": true,
+      "scenario": "valid",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 1,
+      "authorities": [
+        "OPS-001"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-OPS-046",
+      "matched_expected": true,
+      "scenario": "invalid",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 3,
+      "authorities": [
+        "OPS-001",
+        "SCI-002"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-OPS-047",
+      "matched_expected": true,
+      "scenario": "valid",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 3,
+      "authorities": [
+        "OPS-001",
+        "SCI-002"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-OPS-048",
+      "matched_expected": true,
+      "scenario": "transition",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 2,
+      "authorities": [
+        "OPS-001",
+        "SCI-002"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-OPS-049",
+      "matched_expected": true,
+      "scenario": "transition",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 1,
+      "authorities": [
+        "OPS-001",
+        "SCI-002"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-OPS-050",
+      "matched_expected": true,
+      "scenario": "invalid",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 1,
+      "authorities": [
+        "OPS-001"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-OPS-051",
+      "matched_expected": true,
+      "scenario": "invalid",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 1,
+      "authorities": [
+        "OPS-001"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-OPS-052",
+      "matched_expected": true,
+      "scenario": "invalid",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 4,
+      "authorities": [
+        "OPS-001"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-OPS-053",
+      "matched_expected": true,
+      "scenario": "valid",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 2,
+      "authorities": [
+        "OPS-001"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-OPS-054",
+      "matched_expected": true,
+      "scenario": "valid",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 4,
+      "authorities": [
+        "OPS-001"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-OPS-055",
+      "matched_expected": true,
+      "scenario": "valid",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 3,
+      "authorities": [
+        "OPS-001"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-OPS-056",
+      "matched_expected": true,
+      "scenario": "valid",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 4,
+      "authorities": [
+        "OPS-001",
+        "SER-JSON-001"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-OPS-057",
+      "matched_expected": true,
+      "scenario": "valid",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 1,
+      "authorities": [
+        "OPS-001"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-OPS-058",
+      "matched_expected": true,
+      "scenario": "valid",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 3,
+      "authorities": [
+        "OPS-001"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-OPS-059",
+      "matched_expected": true,
+      "scenario": "valid",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 3,
+      "authorities": [
+        "OPS-001",
+        "SCI-002"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-OPS-060",
+      "matched_expected": true,
+      "scenario": "valid",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 2,
+      "authorities": [
+        "OPS-001",
+        "SCI-001"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-OPS-061",
+      "matched_expected": true,
+      "scenario": "valid",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 2,
+      "authorities": [
+        "RPR-001",
+        "SER-001"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-PROC-001",
+      "matched_expected": true,
+      "scenario": "processor",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 3,
+      "authorities": [
+        "RPR-001",
+        "SER-JSON-001"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-PROC-002",
+      "matched_expected": true,
+      "scenario": "processor",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 4,
+      "authorities": [
+        "RPR-001",
+        "SER-JSON-001"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-PROC-003",
+      "matched_expected": true,
+      "scenario": "processor",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 18,
+      "authorities": [
+        "SER-JSON-001",
+        "ENC-001"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-RT-001",
+      "matched_expected": true,
+      "scenario": "serialization",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 4,
+      "authorities": [
+        "SER-JSON-001",
+        "ENC-001"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-RT-002",
+      "matched_expected": true,
+      "scenario": "relationship",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 4,
+      "authorities": [
+        "SER-JSON-001",
+        "ENC-001",
+        "SCI-001"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-RT-003",
+      "matched_expected": true,
+      "scenario": "event",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 2,
+      "authorities": [
+        "SER-001",
+        "SER-JSON-001"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-SER-001",
+      "matched_expected": true,
+      "scenario": "serialization",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 6,
+      "authorities": [
+        "SER-JSON-001",
+        "ENC-001"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-SER-002",
+      "matched_expected": true,
+      "scenario": "serialization",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 3,
+      "authorities": [
+        "SER-JSON-001"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-SER-003",
+      "matched_expected": true,
+      "scenario": "serialization",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 1,
+      "authorities": [
+        "SER-JSON-001"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-SER-004",
+      "matched_expected": true,
+      "scenario": "invalid",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 1,
+      "authorities": [
+        "SER-JSON-001",
+        "ENC-001"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-SER-005",
+      "matched_expected": true,
+      "scenario": "invalid",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 1,
+      "authorities": [
+        "SER-JSON-001"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-SER-006",
+      "matched_expected": true,
+      "scenario": "invalid",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 1,
+      "authorities": [
+        "SER-JSON-001",
+        "ENC-001"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-SER-007",
+      "matched_expected": true,
+      "scenario": "authority",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 3,
+      "authorities": [
+        "SCI-006",
+        "SCI-000"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-VERIF-001",
+      "matched_expected": true,
+      "scenario": "valid",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 1,
+      "authorities": [
+        "SCI-006"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-VERIF-002",
+      "matched_expected": true,
+      "scenario": "invalid",
+      "status": "PASS"
+    },
+    {
+      "assertion_count": 3,
+      "authorities": [
+        "SCI-006",
+        "ADR-0006"
+      ],
+      "failing_assertions": [],
+      "fixture_id": "REF-VERIF-003",
+      "matched_expected": true,
+      "scenario": "transition",
+      "status": "PASS"
+    }
+  ],
+  "profile_id": "CONF-001@1.1.0-OPS",
+  "suite": "SciROS Full Reference Corpus",
+  "summary": {
+    "authorities_compliant": 13,
+    "authorities_required": 13,
+    "dimensions_compliant": 7,
+    "dimensions_evaluated": 7,
+    "dimensions_non_compliant": 0,
+    "dimensions_not_evaluated": 0,
+    "dimensions_partial": 0,
+    "fixtures_error": 0,
+    "fixtures_fail": 0,
+    "fixtures_observed": 105,
+    "fixtures_pass": 105,
+    "overall": "COMPLIANT"
+  }
+}

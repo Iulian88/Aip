@@ -1267,5 +1267,547 @@ export const opsFixtures: readonly ReferenceFixture[] = Object.freeze([
       await ops.getClaimUnitRevision("claim:ref-ops-046", "rev:missing");
     },
   },
+  {
+    fixture_id: "REF-OPS-047",
+    title: "Existing registered Evidence head is available for post-persist transition",
+    scenario: "valid",
+    authorities: ["OPS-001", "SCI-002"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-047");
+      const evidenceId = "evidence:ref-ops-047";
+      await ops.registerEvidenceUnit(evidenceInput(evidenceId), {
+        transition: {
+          to: "registered",
+          authority_agent: OPS_HUMAN,
+          reason: "register for REF-OPS-047",
+          decision_ref: "decision:ref-ops-047",
+          at: OPS_AT,
+          event_id: "erte:ref-ops-047-reg",
+        },
+      });
+      const entity = await ops.getEvidenceUnit(evidenceId);
+      check.equal("revision", entity.revision_id, "rev:initial");
+      const head = await ops.getEvidenceHead(evidenceId);
+      check.equal("head", head.content_version, "rev:initial");
+      check.equal(
+        "record_state",
+        (entity.payload as { envelope: { content: { record_state: string } } })
+          .envelope.content.record_state,
+        "registered",
+      );
+    },
+  },
+  {
+    fixture_id: "REF-OPS-048",
+    title: "Evidence draft → registered post-persist creates successor revision",
+    scenario: "transition",
+    authorities: ["OPS-001", "SCI-002"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-048");
+      const evidenceId = "evidence:ref-ops-048";
+      await ops.registerEvidenceUnit(evidenceInput(evidenceId));
+      const result = await ops.transitionEvidenceRecordState({
+        identity: evidenceId,
+        revision_id: "rev:record-registered-1",
+        expected_head_revision_id: "rev:initial",
+        transition: {
+          to: "registered",
+          authority_agent: OPS_HUMAN,
+          reason: "REF-OPS-048 draft to registered",
+          decision_ref: "decision:ref-ops-048",
+          at: OPS_AT,
+          event_id: "erte:ref-ops-048",
+        },
+      });
+      check.equal("record_state", result.evidence.record_state, "registered");
+      check.equal("head", result.head_revision_id, "rev:record-registered-1");
+      check.equal(
+        "predecessor",
+        result.entity.predecessor_revision_id,
+        "rev:initial",
+      );
+    },
+  },
+  {
+    fixture_id: "REF-OPS-049",
+    title: "Evidence registered → withdrawn post-persist",
+    scenario: "transition",
+    authorities: ["OPS-001", "SCI-002"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-049");
+      const evidenceId = "evidence:ref-ops-049";
+      await ops.registerEvidenceUnit(evidenceInput(evidenceId), {
+        transition: {
+          to: "registered",
+          authority_agent: OPS_HUMAN,
+          reason: "pre-register REF-OPS-049",
+          decision_ref: "decision:ref-ops-049-a",
+          at: OPS_AT,
+          event_id: "erte:ref-ops-049-a",
+        },
+      });
+      const result = await ops.transitionEvidenceRecordState({
+        identity: evidenceId,
+        revision_id: "rev:record-withdrawn-1",
+        expected_head_revision_id: "rev:initial",
+        transition: {
+          to: "withdrawn",
+          authority_agent: OPS_HUMAN,
+          reason: "REF-OPS-049 withdraw",
+          at: OPS_AT,
+          event_id: "erte:ref-ops-049-b",
+        },
+      });
+      check.equal("record_state", result.evidence.record_state, "withdrawn");
+      check.equal("head", result.head_revision_id, "rev:record-withdrawn-1");
+    },
+  },
+  {
+    fixture_id: "REF-OPS-050",
+    title: "Invalid Evidence Record State transition propagates Core F_TRANSITION",
+    scenario: "invalid",
+    authorities: ["OPS-001", "SCI-002"],
+    expectation: { outcome: "failure", failure_code: "F_TRANSITION" },
+    async execute() {
+      const ops = makeOps("persist-sess:ref-ops-050");
+      const evidenceId = "evidence:ref-ops-050";
+      await ops.registerEvidenceUnit(evidenceInput(evidenceId), {
+        transition: {
+          to: "registered",
+          authority_agent: OPS_HUMAN,
+          reason: "pre-register REF-OPS-050",
+          decision_ref: "decision:ref-ops-050",
+          at: OPS_AT,
+          event_id: "erte:ref-ops-050-a",
+        },
+      });
+      await ops.transitionEvidenceRecordState({
+        identity: evidenceId,
+        revision_id: "rev:bad",
+        expected_head_revision_id: "rev:initial",
+        transition: {
+          to: "draft",
+          authority_agent: OPS_HUMAN,
+          reason: "illegal demotion",
+          at: OPS_AT,
+          event_id: "erte:ref-ops-050-b",
+        },
+      });
+    },
+  },
+  {
+    fixture_id: "REF-OPS-051",
+    title: "Stale Evidence RevisionHead CAS rejects with CONFLICT",
+    scenario: "invalid",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "failure", failure_code: "CONFLICT" },
+    async execute() {
+      const ops = makeOps("persist-sess:ref-ops-051");
+      const evidenceId = "evidence:ref-ops-051";
+      await ops.registerEvidenceUnit(evidenceInput(evidenceId));
+      await ops.transitionEvidenceRecordState({
+        identity: evidenceId,
+        revision_id: "rev:record-registered-1",
+        expected_head_revision_id: "rev:initial",
+        transition: {
+          to: "registered",
+          authority_agent: OPS_HUMAN,
+          reason: "REF-OPS-051 first",
+          decision_ref: "decision:ref-ops-051-a",
+          at: OPS_AT,
+          event_id: "erte:ref-ops-051-a",
+        },
+      });
+      await ops.transitionEvidenceRecordState({
+        identity: evidenceId,
+        revision_id: "rev:record-withdrawn-stale",
+        expected_head_revision_id: "rev:initial",
+        transition: {
+          to: "withdrawn",
+          authority_agent: OPS_HUMAN,
+          reason: "REF-OPS-051 stale",
+          at: OPS_AT,
+          event_id: "erte:ref-ops-051-b",
+        },
+      });
+    },
+  },
+  {
+    fixture_id: "REF-OPS-052",
+    title: "Duplicate Evidence revision_id propagates ALREADY_EXISTS",
+    scenario: "invalid",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "failure", failure_code: "ALREADY_EXISTS" },
+    async execute() {
+      const ops = makeOps("persist-sess:ref-ops-052");
+      const evidenceId = "evidence:ref-ops-052";
+      await ops.registerEvidenceUnit(evidenceInput(evidenceId));
+      const result = await ops.transitionEvidenceRecordState({
+        identity: evidenceId,
+        revision_id: "rev:dup",
+        expected_head_revision_id: "rev:initial",
+        transition: {
+          to: "registered",
+          authority_agent: OPS_HUMAN,
+          reason: "REF-OPS-052 first",
+          decision_ref: "decision:ref-ops-052-a",
+          at: OPS_AT,
+          event_id: "erte:ref-ops-052-a",
+        },
+      });
+      await ops.repository.create(result.entity);
+    },
+  },
+  {
+    fixture_id: "REF-OPS-053",
+    title: "Evidence predecessor lineage + RevisionHead after Record State transition",
+    scenario: "valid",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-053");
+      const evidenceId = "evidence:ref-ops-053";
+      await ops.registerEvidenceUnit(evidenceInput(evidenceId));
+      await ops.transitionEvidenceRecordState({
+        identity: evidenceId,
+        revision_id: "rev:record-registered-1",
+        expected_head_revision_id: "rev:initial",
+        transition: {
+          to: "registered",
+          authority_agent: OPS_HUMAN,
+          reason: "REF-OPS-053",
+          decision_ref: "decision:ref-ops-053",
+          at: OPS_AT,
+          event_id: "erte:ref-ops-053",
+        },
+      });
+      const lineage = await ops.getEvidenceLineage(evidenceId);
+      check.equal("lineage length", lineage.length, 2);
+      const initial = lineage[0]!;
+      const successor = lineage[1]!;
+      check.equal("initial", initial.revision_id, "rev:initial");
+      check.equal(
+        "predecessor",
+        successor.predecessor_revision_id,
+        "rev:initial",
+      );
+      const head = await ops.getEvidenceHead(evidenceId);
+      check.equal("head", head.content_version, "rev:record-registered-1");
+    },
+  },
+  {
+    fixture_id: "REF-OPS-054",
+    title: "Prior Evidence revision remains immutable after Record State transition",
+    scenario: "valid",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-054");
+      const evidenceId = "evidence:ref-ops-054";
+      await ops.registerEvidenceUnit(evidenceInput(evidenceId));
+      await ops.transitionEvidenceRecordState({
+        identity: evidenceId,
+        revision_id: "rev:record-registered-1",
+        expected_head_revision_id: "rev:initial",
+        transition: {
+          to: "registered",
+          authority_agent: OPS_HUMAN,
+          reason: "REF-OPS-054",
+          decision_ref: "decision:ref-ops-054",
+          at: OPS_AT,
+          event_id: "erte:ref-ops-054",
+        },
+      });
+      const old = await ops.getEvidenceUnitRevision(evidenceId, "rev:initial");
+      check.equal(
+        "old draft",
+        (old.payload as { envelope: { content: { record_state: string } } })
+          .envelope.content.record_state,
+        "draft",
+      );
+      try {
+        await ops.repository.replace({ ...old, content_version: "9.9.9" });
+        check.ok("should reject replace", false);
+      } catch (e) {
+        check.ok(
+          "IMMUTABLE_ENTITY",
+          e instanceof PersistenceError && e.code === "IMMUTABLE_ENTITY",
+        );
+      }
+    },
+  },
+  {
+    fixture_id: "REF-OPS-055",
+    title: "ResearchSnapshot includes Evidence revisions + RevisionHead after transition",
+    scenario: "valid",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-055");
+      const evidenceId = "evidence:ref-ops-055";
+      const session = ops.openSession({
+        research_session_id: "research:session:ref-ops-055",
+      });
+      await ops.registerEvidenceUnit(evidenceInput(evidenceId));
+      await ops.transitionEvidenceRecordState({
+        identity: evidenceId,
+        revision_id: "rev:record-registered-1",
+        expected_head_revision_id: "rev:initial",
+        transition: {
+          to: "registered",
+          authority_agent: OPS_HUMAN,
+          reason: "REF-OPS-055",
+          decision_ref: "decision:ref-ops-055",
+          at: OPS_AT,
+          event_id: "erte:ref-ops-055",
+        },
+      });
+      ops.registerMember(session, {
+        entity_kind: "CanonicalUnit",
+        unit_kind: "EvidenceUnit",
+        identity: evidenceId,
+      });
+      const snap = await ops.snapshotView(session);
+      check.equal("session", snap.research_session_id, "research:session:ref-ops-055");
+      check.equal("members", snap.member_refs.length, 1);
+      check.ok(
+        "has RevisionHead",
+        snap.persistence_snapshot.entities.some((e) => e.entity_kind === "RevisionHead"),
+      );
+      check.ok(
+        "has two EvidenceUnit revisions",
+        snap.persistence_snapshot.entities.filter(
+          (e) =>
+            e.entity_kind === "CanonicalUnit" &&
+            e.identity === evidenceId,
+        ).length >= 2,
+      );
+    },
+  },
+  {
+    fixture_id: "REF-OPS-056",
+    title: "WorkspaceSnapshot membership unchanged by Evidence Record State transition",
+    scenario: "valid",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-056");
+      const evidenceId = "evidence:ref-ops-056";
+      const ws = ops.openWorkspace({
+        research_workspace_id: "workspace:ref-ops-056",
+      });
+      await ops.registerEvidenceUnit(evidenceInput(evidenceId));
+      ops.registerWorkspaceMember(ws, {
+        entity_kind: "CanonicalUnit",
+        unit_kind: "EvidenceUnit",
+        identity: evidenceId,
+      });
+      const before = ws.members().length;
+      await ops.transitionEvidenceRecordState({
+        identity: evidenceId,
+        revision_id: "rev:record-registered-1",
+        expected_head_revision_id: "rev:initial",
+        transition: {
+          to: "registered",
+          authority_agent: OPS_HUMAN,
+          reason: "REF-OPS-056",
+          decision_ref: "decision:ref-ops-056",
+          at: OPS_AT,
+          event_id: "erte:ref-ops-056",
+        },
+      });
+      check.equal("membership unchanged", ws.members().length, before);
+      const snap = await ops.workspaceSnapshotView(ws);
+      check.equal("workspace id", snap.research_workspace_id, "workspace:ref-ops-056");
+      check.equal("member_refs", snap.member_refs.length, 1);
+    },
+  },
+  {
+    fixture_id: "REF-OPS-057",
+    title: "Evidence export head reflects new record_state; prior revision differs",
+    scenario: "valid",
+    authorities: ["OPS-001", "SER-JSON-001"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-057");
+      const evidenceId = "evidence:ref-ops-057";
+      await ops.registerEvidenceUnit(evidenceInput(evidenceId));
+      await ops.transitionEvidenceRecordState({
+        identity: evidenceId,
+        revision_id: "rev:record-registered-1",
+        expected_head_revision_id: "rev:initial",
+        transition: {
+          to: "registered",
+          authority_agent: OPS_HUMAN,
+          reason: "REF-OPS-057",
+          decision_ref: "decision:ref-ops-057",
+          at: OPS_AT,
+          event_id: "erte:ref-ops-057",
+        },
+      });
+      const headExport = await ops.exportEvidenceUnit(evidenceId);
+      const revExport = await ops.exportEvidenceUnitRevision(
+        evidenceId,
+        "rev:record-registered-1",
+      );
+      const oldExport = await ops.exportEvidenceUnitRevision(
+        evidenceId,
+        "rev:initial",
+      );
+      check.equal("head equals new rev", headExport, revExport);
+      check.ok("old differs", headExport !== oldExport);
+      check.ok("head registered", headExport.includes('"registered"'));
+      check.ok("old draft", oldExport.includes('"draft"'));
+    },
+  },
+  {
+    fixture_id: "REF-OPS-058",
+    title: "Deterministic Evidence Record State transition double-run export",
+    scenario: "valid",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      async function run() {
+        const ops = makeOps("persist-sess:ref-ops-058");
+        const evidenceId = "evidence:ref-ops-058";
+        await ops.registerEvidenceUnit(evidenceInput(evidenceId));
+        await ops.transitionEvidenceRecordState({
+          identity: evidenceId,
+          revision_id: "rev:record-registered-1",
+          expected_head_revision_id: "rev:initial",
+          transition: {
+            to: "registered",
+            authority_agent: OPS_HUMAN,
+            reason: "REF-OPS-058",
+            decision_ref: "decision:ref-ops-058",
+            at: OPS_AT,
+            event_id: "erte:ref-ops-058",
+          },
+        });
+        return ops.exportEvidenceUnit(evidenceId);
+      }
+      const a = await run();
+      const b = await run();
+      check.equal("deterministic export", a, b);
+    },
+  },
+  {
+    fixture_id: "REF-OPS-059",
+    title: "Optional ops.evidence_record_state_revision event after successful CAS",
+    scenario: "valid",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-059");
+      const evidenceId = "evidence:ref-ops-059";
+      await ops.registerEvidenceUnit(evidenceInput(evidenceId));
+      await ops.transitionEvidenceRecordState({
+        identity: evidenceId,
+        revision_id: "rev:record-registered-1",
+        expected_head_revision_id: "rev:initial",
+        append_event: true,
+        transition: {
+          to: "registered",
+          authority_agent: OPS_HUMAN,
+          reason: "REF-OPS-059",
+          decision_ref: "decision:ref-ops-059",
+          at: OPS_AT,
+          event_id: "erte:ref-ops-059",
+        },
+      });
+      const events = await ops.getEvents(evidenceId);
+      const hit = events.find(
+        (e) => e.event_type === "ops.evidence_record_state_revision",
+      );
+      check.ok("event present", hit !== undefined);
+      check.equal("event_id", hit!.event_id, "ops:erte:ref-ops-059");
+      check.equal(
+        "to_record_state",
+        (hit!.payload as { to_record_state: string }).to_record_state,
+        "registered",
+      );
+    },
+  },
+  {
+    fixture_id: "REF-OPS-060",
+    title: "Sprint 019 Evidence create-once + optional pre-persist transition regression",
+    scenario: "valid",
+    authorities: ["OPS-001", "SCI-002"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-060");
+      const evidenceId = "evidence:ref-ops-060";
+      const { evidence, entity } = await ops.registerEvidenceUnit(
+        evidenceInput(evidenceId),
+        {
+          transition: {
+            to: "registered",
+            authority_agent: OPS_HUMAN,
+            reason: "pre-persist REF-OPS-060",
+            decision_ref: "decision:ref-ops-060",
+            at: OPS_AT,
+            event_id: "erte:ref-ops-060",
+          },
+        },
+      );
+      check.equal("record_state", evidence.record_state, "registered");
+      check.equal("revision", entity.revision_id, "rev:initial");
+      try {
+        await ops.registerEvidenceUnit(evidenceInput(evidenceId));
+        check.ok("should reject duplicate create", false);
+      } catch (e) {
+        check.ok(
+          "ALREADY_EXISTS",
+          e instanceof PersistenceError && e.code === "ALREADY_EXISTS",
+        );
+      }
+    },
+  },
+  {
+    fixture_id: "REF-OPS-061",
+    title: "Sprint 020 Claim Standing Model C regression alongside Evidence Record State",
+    scenario: "valid",
+    authorities: ["OPS-001", "SCI-001"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-061");
+      const claimId = "claim:ref-ops-061";
+      const evidenceId = "evidence:ref-ops-061";
+      await ops.registerClaimUnit(claimInput(claimId));
+      const claimR = await ops.transitionClaimStanding({
+        identity: claimId,
+        revision_id: "rev:standing-supported-1",
+        expected_head_revision_id: "rev:initial",
+        transition: {
+          to: "supported",
+          authority_agent: OPS_HUMAN,
+          reason: "clinical_boundary_ack REF-OPS-061",
+          decision_ref: "decision:ref-ops-061-claim",
+          at: OPS_AT,
+          event_id: "ste:ref-ops-061",
+          supported_by: [evidenceId],
+        },
+      });
+      check.equal("claim standing", claimR.claim.standing, "supported");
+      await ops.registerEvidenceUnit(evidenceInput(evidenceId));
+      const evR = await ops.transitionEvidenceRecordState({
+        identity: evidenceId,
+        revision_id: "rev:record-registered-1",
+        expected_head_revision_id: "rev:initial",
+        transition: {
+          to: "registered",
+          authority_agent: OPS_HUMAN,
+          reason: "REF-OPS-061 evidence",
+          decision_ref: "decision:ref-ops-061-ev",
+          at: OPS_AT,
+          event_id: "erte:ref-ops-061",
+        },
+      });
+      check.equal("evidence state", evR.evidence.record_state, "registered");
+    },
+  },
 ]);
 

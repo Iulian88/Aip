@@ -1,7 +1,8 @@
 /**
- * ResearchOperations — OPS orchestration façade (SPEC-016A / SPEC-018 / SPEC-019 / SPEC-020).
+ * ResearchOperations — OPS orchestration façade (SPEC-016A / SPEC-018 / SPEC-019 / SPEC-020 / SPEC-021).
  * Orchestrates Core → ENC → Persistence → SER. Does not author scientific meaning.
- * Sprint 020: Model C initial revisions + Claim Standing post-persist transition.
+ * Sprint 020: Model C + Claim Standing post-persist.
+ * Sprint 021: Evidence Record State post-persist (Model C).
  */
 
 import {
@@ -44,6 +45,7 @@ import type {
   WorkspaceMemberRef,
 } from "../workspace/types.js";
 import { claimFromClaimUnitPayload } from "./claim-from-unit.js";
+import { evidenceFromEvidenceUnitPayload } from "./evidence-from-unit.js";
 
 export interface ResearchOperationsDeps {
   readonly claimFactory: ClaimFactory;
@@ -102,6 +104,26 @@ export interface ClaimLineageEntry {
   readonly content_version: string;
   readonly storage_key: string;
 }
+
+export interface TransitionEvidenceRecordStateInput {
+  readonly identity: string;
+  readonly transition: EvidenceRecordTransitionInput;
+  /** New immutable revision id (caller-supplied rev:…). */
+  readonly revision_id: string;
+  /** Expected current RevisionHead pointer (CAS). */
+  readonly expected_head_revision_id: string;
+  /** When true, append ops.evidence_record_state_revision operational event. */
+  readonly append_event?: boolean;
+}
+
+export interface TransitionEvidenceRecordStateResult {
+  readonly evidence: Evidence;
+  readonly unit: CanonicalUnit;
+  readonly entity: PersistenceEntity;
+  readonly head_revision_id: string;
+}
+
+export type EvidenceLineageEntry = ClaimLineageEntry;
 
 export class ResearchOperations {
   private readonly claims: ClaimFactory;
@@ -192,7 +214,7 @@ export class ResearchOperations {
 
   /**
    * Core Evidence createDraft → optional TransitionService → ENC assemble → Persistence create.
-   * Model C: initial revision + RevisionHead only (no Evidence post-persist Record State in Sprint 020).
+   * Model C: initial revision + RevisionHead. Post-persist Record State: transitionEvidenceRecordState.
    */
   async registerEvidenceUnit(
     input: CreateEvidenceInput,
@@ -288,6 +310,77 @@ export class ResearchOperations {
   }
 
   /**
+   * Post-persist Evidence Record State transition (Model C).
+   * Core validates → new immutable revision → advanceHead CAS → optional appendEvent.
+   * Partial-write: if advanceHead fails after create, revision row may exist without becoming head.
+   */
+  async transitionEvidenceRecordState(
+    input: TransitionEvidenceRecordStateInput,
+  ): Promise<TransitionEvidenceRecordStateResult> {
+    assertRevisionId(input.revision_id);
+    assertRevisionId(input.expected_head_revision_id, "expected_head_revision_id");
+    if (input.revision_id === INITIAL_REVISION_ID) {
+      throw new OpsError(
+        "INVALID_COMMAND_STATE",
+        "transitionEvidenceRecordState revision_id must not be rev:initial",
+      );
+    }
+    if (input.revision_id === input.expected_head_revision_id) {
+      throw new OpsError(
+        "INVALID_COMMAND_STATE",
+        "revision_id must differ from expected_head_revision_id",
+      );
+    }
+
+    const priorEntity = await this.getEvidenceUnit(input.identity);
+    const priorEvidence = evidenceFromEvidenceUnitPayload(priorEntity.payload);
+    const evidence = this.evidenceTransitions.transition(
+      priorEvidence,
+      input.transition,
+    );
+    const unit = await this.encoder.assemble(evidence);
+
+    const entity = entityFromCanonicalUnit(unit, {
+      revision_id: input.revision_id,
+      predecessor_revision_id: input.expected_head_revision_id,
+    });
+    const stored = await this.repository.create(entity);
+
+    const head = await this.repository.advanceHead(
+      input.identity,
+      "EvidenceUnit",
+      input.expected_head_revision_id,
+      input.revision_id,
+    );
+
+    if (input.append_event === true) {
+      const event_id =
+        input.transition.event_id !== undefined
+          ? `ops:${input.transition.event_id}`
+          : `ops:evidence_record_state:${input.identity}:${input.revision_id}`;
+      await this.repository.appendEvent(input.identity, {
+        event_id,
+        parent_identity: input.identity,
+        event_type: "ops.evidence_record_state_revision",
+        payload: Object.freeze({
+          revision_id: input.revision_id,
+          predecessor_revision_id: input.expected_head_revision_id,
+          unit_kind: "EvidenceUnit",
+          to_record_state: input.transition.to,
+        }),
+        ordinal: 0,
+      });
+    }
+
+    return {
+      evidence,
+      unit,
+      entity: stored,
+      head_revision_id: head.content_version,
+    };
+  }
+
+  /**
    * Explicit Persistence.appendEvent — sole event journal (SPEC-016A P-016-004).
    * Caller must supply deterministic event_id. Lower-layer errors propagate unchanged.
    */
@@ -376,6 +469,38 @@ export class ResearchOperations {
     });
   }
 
+  async getEvidenceUnitRevision(
+    identity: string,
+    revision_id: string,
+  ): Promise<PersistenceEntity> {
+    return this.repository.get(identity, "CanonicalUnit", {
+      unit_kind: "EvidenceUnit",
+      revision_id,
+    });
+  }
+
+  async getEvidenceHead(identity: string): Promise<PersistenceEntity> {
+    return this.repository.getHead(identity, "EvidenceUnit");
+  }
+
+  async getEvidenceLineage(
+    identity: string,
+  ): Promise<readonly EvidenceLineageEntry[]> {
+    const rows = await this.repository.listRevisions(identity, "EvidenceUnit");
+    return Object.freeze(
+      rows.map((e) =>
+        Object.freeze({
+          revision_id: e.revision_id ?? INITIAL_REVISION_ID,
+          ...(e.predecessor_revision_id !== undefined
+            ? { predecessor_revision_id: e.predecessor_revision_id }
+            : {}),
+          content_version: e.content_version,
+          storage_key: e.storage_key,
+        }),
+      ),
+    );
+  }
+
   async getEvents(parent_identity: string): Promise<readonly PersistenceEvent[]> {
     return this.repository.getEvents(parent_identity);
   }
@@ -449,6 +574,14 @@ export class ResearchOperations {
    */
   async exportEvidenceUnit(identity: string): Promise<string> {
     const entity = await this.getEvidenceUnit(identity);
+    return this.jsonEncoder.encode(entity.payload);
+  }
+
+  async exportEvidenceUnitRevision(
+    identity: string,
+    revision_id: string,
+  ): Promise<string> {
+    const entity = await this.getEvidenceUnitRevision(identity, revision_id);
     return this.jsonEncoder.encode(entity.payload);
   }
 }

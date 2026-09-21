@@ -1,0 +1,99 @@
+{
+  "sprint": 21,
+  "subject": "Evidence Post-Persist Record State OPS",
+  "scope": "Evidence Record State post-persist OPS orchestration via Model C; Core-owned draft|registered|withdrawn; no Grade/Contradiction/NR/Verification OPS",
+  "spec": "SPEC-021 v0.1.0-DRAFT",
+  "architecture": {
+    "model": "Model C",
+    "model_description": "Stable Scientific Identity + Immutable Revisions + RevisionHead",
+    "revision_key": "persist:CanonicalUnit:{unit_kind}:{scientific_identity}:{revision_id}",
+    "initial_revision": "rev:initial",
+    "subsequent_revision": "caller-supplied rev:…",
+    "lineage": "PersistenceEntity.predecessor_revision_id",
+    "revision_head_key": "persist:RevisionHead:{unit_kind}:{identity}",
+    "head_advancement": "replace + expected_version CAS",
+    "evidence_boundary": "post-persist Record State via transitionEvidenceRecordState; pre-persist register path preserved",
+    "scientific_authority": "Scientific Core EvidenceTransitionService",
+    "ops_api": "transitionEvidenceRecordState",
+    "decoder": "evidenceFromEvidenceUnitPayload",
+    "chain": "OPS → REF-OPS → ReferenceRunner → ReferenceReport → ConformanceEngine(profile) → ConformanceReport(profile_id) → CertificationEngine → Certificate",
+    "conformance_engines": 1,
+    "certification_engines": 1
+  },
+  "audit": {
+    "architecture_audit": "SPEC-021 / FINAL-ARCHITECTURE-RE-AUDIT-021 APPROVED WITH OBSERVATIONS",
+    "code_audit": "CODE-AUDIT-021 APPROVED WITH OBSERVATIONS",
+    "required_patches": 0,
+    "blockers": 0
+  },
+  "execution": {
+    "status": "COMPLETE WITH OBSERVATIONS",
+    "path": "Core Evidence Record State transition → ENC assemble → Persistence.create revision → RevisionHead CAS → optional appendEvent"
+  },
+  "corpora": {
+    "REF_CORPUS_SCI": 44,
+    "REF_CORPUS_OPS": 61,
+    "REF_CORPUS_FULL": 105,
+    "sci_pass": 44,
+    "ops_pass": 61,
+    "full_pass": 105,
+    "evidence_record_state_fixtures": "REF-OPS-047…REF-OPS-061"
+  },
+  "sci": {
+    "profile_id": "CONF-001@1.0.0",
+    "corpus": "REF-CORPUS-SCI",
+    "conformance_overall": "COMPLIANT",
+    "certification_decision": "CERTIFIED",
+    "certificate_id": "cert:sess-sprint-021-formal-sci:sciros-reference-test-suite:certified",
+    "scope": [
+      "SCI-000",
+      "SCI-001",
+      "SCI-002",
+      "SCI-003",
+      "SCI-004",
+      "SCI-005",
+      "SCI-006",
+      "ENC-001",
+      "SER-001",
+      "SER-JSON-001",
+      "RPR-001",
+      "ADR-0006",
+      "CONF-001"
+    ]
+  },
+  "ops": {
+    "profile_id": "CONF-001@1.1.0-OPS",
+    "corpus": "REF-CORPUS-FULL",
+    "ops_authoring_corpus": "REF-CORPUS-OPS",
+    "conformance_overall": "COMPLIANT",
+    "certification_decision": "CERTIFIED",
+    "certificate_id": "cert:sess-sprint-021-formal-ops:sciros-full-reference-corpus:certified",
+    "scope": [
+      "SCI-000",
+      "SCI-001",
+      "SCI-002",
+      "SCI-003",
+      "SCI-004",
+      "SCI-005",
+      "SCI-006",
+      "ENC-001",
+      "SER-001",
+      "SER-JSON-001",
+      "RPR-001",
+      "ADR-0006",
+      "CONF-001",
+      "OPS-001"
+    ]
+  },
+  "observations_non_blocking": [
+    "O-CA-021-01: GAE reconstruct may use empty decision_ref when omitted in envelope; Record-State-only paths typically have no GAE",
+    "O-CA-021-02: Core ERTE randomUUID fallback unchanged; certified paths supply event_id",
+    "O-CA-021-03: Predecessor existence-at-create not enforced (Sprint 020 honesty preserved)",
+    "O-CA-021-04: Stale CAS path may leave orphan revision (authorized Model C partial-write)",
+    "O-CA-021-05: EvidenceLineageEntry type-aliases ClaimLineageEntry — structural reuse only",
+    "O-CA-021-06: SMOKE_019_PASS regenerated with new OPS count text during regression"
+  ],
+  "formal_status": "CERTIFIED",
+  "closure": "PENDING_GIT_CLOSURE",
+  "note": "Engine CertificationDecision remains CERTIFIED; non-blocking CODE-AUDIT-021 observations recorded separately. Sprint not closed until final Git commit+push."
+}
