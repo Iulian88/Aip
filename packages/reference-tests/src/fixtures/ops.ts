@@ -8,6 +8,7 @@ import {
   referenceAppMarker,
   claimFromClaimUnitPayload,
   contradictionFromContradictionUnitPayload,
+  negativeResultFromNegativeResultUnitPayload,
 } from "@sciros/reference-app";
 import {
   ClaimTransitionService,
@@ -23,6 +24,8 @@ import {
   contradictionInput,
   evidenceInput,
   makeOps,
+  negativeResultInput,
+  negativeResultRegistration,
   OPS_AT,
   OPS_HUMAN,
 } from "./ops-support.js";
@@ -3298,6 +3301,835 @@ export const opsFixtures: readonly ReferenceFixture[] = Object.freeze([
           reason: "REF-OPS-105",
           at: OPS_AT,
           event_id: "crte:ref-ops-105",
+        },
+      });
+    },
+  },
+  {
+    fixture_id: "REF-OPS-106",
+    title: "Negative Result createRegistered → NegativeResultUnit rev:initial + head",
+    scenario: "valid",
+    authorities: ["OPS-001", "SCI-005", "ENC-001"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-106");
+      const nid = "negresult:ref-ops-106";
+      const claim = "claim:ref-ops-106";
+      const evid = "evidence:ref-ops-106";
+      const r = await ops.registerNegativeResultUnit(
+        negativeResultInput(nid, {
+          claim_refs: [claim],
+          evidence_refs: [evid],
+        }),
+        negativeResultRegistration("nrte:ref-ops-106"),
+      );
+      check.equal("record_state", r.negativeResult.record_state, "registered");
+      check.equal("NRTE count", r.negativeResult.record_transition_log?.length ?? 0, 1);
+      check.equal("unit_kind", r.unit.envelope.unit_kind, "NegativeResultUnit");
+      check.equal("intact", r.unit.intact, true);
+      check.equal("revision", r.entity.revision_id, "rev:initial");
+      check.equal(
+        "content_version",
+        r.unit.envelope.content_version,
+        r.negativeResult.negative_result_version,
+      );
+      const claims = r.unit.envelope.references.filter(
+        (x) => x.role === "qualifies_or_challenges",
+      );
+      const cites = r.unit.envelope.references.filter(
+        (x) => x.role === "cites_evidence",
+      );
+      check.equal("claim_refs", claims[0]?.identity, claim);
+      check.equal("evidence_refs", cites[0]?.identity, evid);
+      const head = await ops.getNegativeResultHead(nid);
+      check.equal("head", head.content_version, "rev:initial");
+    },
+  },
+  {
+    fixture_id: "REF-OPS-107",
+    title: "AI registration of Negative Result rejects Core F5; nothing persisted",
+    scenario: "invalid",
+    authorities: ["OPS-001", "SCI-005"],
+    expectation: { outcome: "failure", failure_code: "F5" },
+    async execute() {
+      const ops = makeOps("persist-sess:ref-ops-107");
+      await ops.registerNegativeResultUnit(
+        negativeResultInput("negresult:ref-ops-107"),
+        negativeResultRegistration("nrte:ref-ops-107", {
+          authority_agent: "ai:ref-ops-107",
+        }),
+      );
+    },
+  },
+  {
+    fixture_id: "REF-OPS-108",
+    title: "Empty decision_ref on registration rejects F_TRANSITION",
+    scenario: "invalid",
+    authorities: ["OPS-001", "SCI-005"],
+    expectation: { outcome: "failure", failure_code: "F_TRANSITION" },
+    async execute() {
+      const ops = makeOps("persist-sess:ref-ops-108");
+      await ops.registerNegativeResultUnit(
+        negativeResultInput("negresult:ref-ops-108"),
+        negativeResultRegistration("nrte:ref-ops-108", { decision_ref: "  " }),
+      );
+    },
+  },
+  {
+    fixture_id: "REF-OPS-109",
+    title: "Bad negative_result_id rejects Core F1",
+    scenario: "invalid",
+    authorities: ["OPS-001", "SCI-005"],
+    expectation: { outcome: "failure", failure_code: "F1" },
+    async execute() {
+      const ops = makeOps("persist-sess:ref-ops-109");
+      await ops.registerNegativeResultUnit(
+        negativeResultInput("not-a-negresult-id"),
+        negativeResultRegistration("nrte:ref-ops-109"),
+      );
+    },
+  },
+  {
+    fixture_id: "REF-OPS-110",
+    title: "Empty protocol_ref rejects Core F2",
+    scenario: "invalid",
+    authorities: ["OPS-001", "SCI-005"],
+    expectation: { outcome: "failure", failure_code: "F2" },
+    async execute() {
+      const ops = makeOps("persist-sess:ref-ops-110");
+      await ops.registerNegativeResultUnit(
+        negativeResultInput("negresult:ref-ops-110", { protocol_ref: "  " }),
+        negativeResultRegistration("nrte:ref-ops-110"),
+      );
+    },
+  },
+  {
+    fixture_id: "REF-OPS-111",
+    title: "expected_observation none rejects Core F2",
+    scenario: "invalid",
+    authorities: ["OPS-001", "SCI-005"],
+    expectation: { outcome: "failure", failure_code: "F2" },
+    async execute() {
+      const ops = makeOps("persist-sess:ref-ops-111");
+      await ops.registerNegativeResultUnit(
+        negativeResultInput("negresult:ref-ops-111", {
+          expected_observation: "none",
+        }),
+        negativeResultRegistration("nrte:ref-ops-111"),
+      );
+    },
+  },
+  {
+    fixture_id: "REF-OPS-112",
+    title: "Bad Claim id in claim_refs rejects Core F8",
+    scenario: "invalid",
+    authorities: ["OPS-001", "SCI-005"],
+    expectation: { outcome: "failure", failure_code: "F8" },
+    async execute() {
+      const ops = makeOps("persist-sess:ref-ops-112");
+      await ops.registerNegativeResultUnit(
+        negativeResultInput("negresult:ref-ops-112", {
+          claim_refs: ["not-a-claim-id"],
+        }),
+        negativeResultRegistration("nrte:ref-ops-112"),
+      );
+    },
+  },
+  {
+    fixture_id: "REF-OPS-113",
+    title: "Duplicate Negative Result create rejects ALREADY_EXISTS",
+    scenario: "invalid",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "failure", failure_code: "ALREADY_EXISTS" },
+    async execute() {
+      const ops = makeOps("persist-sess:ref-ops-113");
+      const nid = "negresult:ref-ops-113";
+      await ops.registerNegativeResultUnit(
+        negativeResultInput(nid),
+        negativeResultRegistration("nrte:ref-ops-113-a"),
+      );
+      await ops.registerNegativeResultUnit(
+        negativeResultInput(nid),
+        negativeResultRegistration("nrte:ref-ops-113-b"),
+      );
+    },
+  },
+  {
+    fixture_id: "REF-OPS-114",
+    title: "registerNegativeResultUnit non-initial revision_id → OpsError",
+    scenario: "invalid",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "failure", failure_code: "INVALID_COMMAND_STATE" },
+    async execute() {
+      const ops = makeOps("persist-sess:ref-ops-114");
+      await ops.registerNegativeResultUnit(
+        negativeResultInput("negresult:ref-ops-114"),
+        negativeResultRegistration("nrte:ref-ops-114"),
+        { revision_id: "rev:not-initial" },
+      );
+    },
+  },
+  {
+    fixture_id: "REF-OPS-115",
+    title: "Post-persist withdraw Human → successor revision + head",
+    scenario: "valid",
+    authorities: ["OPS-001", "SCI-005", "ENC-001"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-115");
+      const nid = "negresult:ref-ops-115";
+      const created = await ops.registerNegativeResultUnit(
+        negativeResultInput(nid),
+        negativeResultRegistration("nrte:ref-ops-115-reg"),
+      );
+      const version = created.negativeResult.negative_result_version;
+      const r = await ops.transitionNegativeResultRecordState({
+        identity: nid,
+        revision_id: "rev:withdrawn-1",
+        expected_head_revision_id: "rev:initial",
+        transition: {
+          to: "withdrawn",
+          authority_agent: OPS_HUMAN,
+          reason: "REF-OPS-115 withdraw",
+          decision_ref: "decision:ref-ops-115",
+          at: OPS_AT,
+          event_id: "nrte:ref-ops-115-wd",
+          withdrawal_reason: "protocol superseded",
+        },
+      });
+      check.equal("record_state", r.negativeResult.record_state, "withdrawn");
+      check.equal("withdrawal_reason", r.negativeResult.withdrawal_reason, "protocol superseded");
+      check.equal("version unchanged", r.negativeResult.negative_result_version, version);
+      check.equal("revision", r.entity.revision_id, "rev:withdrawn-1");
+      check.equal(
+        "predecessor",
+        r.entity.predecessor_revision_id,
+        "rev:initial",
+      );
+      check.equal("head", r.head_revision_id, "rev:withdrawn-1");
+      check.equal("NRTE count", r.negativeResult.record_transition_log?.length ?? 0, 2);
+    },
+  },
+  {
+    fixture_id: "REF-OPS-116",
+    title: "AI withdrawal rejects Core F5; head unchanged",
+    scenario: "invalid",
+    authorities: ["OPS-001", "SCI-005"],
+    expectation: { outcome: "failure", failure_code: "F5" },
+    async execute() {
+      const ops = makeOps("persist-sess:ref-ops-116");
+      const nid = "negresult:ref-ops-116";
+      await ops.registerNegativeResultUnit(
+        negativeResultInput(nid),
+        negativeResultRegistration("nrte:ref-ops-116-reg"),
+      );
+      await ops.transitionNegativeResultRecordState({
+        identity: nid,
+        revision_id: "rev:withdrawn-1",
+        expected_head_revision_id: "rev:initial",
+        transition: {
+          to: "withdrawn",
+          authority_agent: "ai:ref-ops-116",
+          reason: "AI withdraw",
+          decision_ref: "decision:ref-ops-116",
+          at: OPS_AT,
+          event_id: "nrte:ref-ops-116-wd",
+          withdrawal_reason: "attempt",
+        },
+      });
+    },
+  },
+  {
+    fixture_id: "REF-OPS-117",
+    title: "Missing withdrawal_reason rejects Core F7",
+    scenario: "invalid",
+    authorities: ["OPS-001", "SCI-005"],
+    expectation: { outcome: "failure", failure_code: "F7" },
+    async execute() {
+      const ops = makeOps("persist-sess:ref-ops-117");
+      const nid = "negresult:ref-ops-117";
+      await ops.registerNegativeResultUnit(
+        negativeResultInput(nid),
+        negativeResultRegistration("nrte:ref-ops-117-reg"),
+      );
+      await ops.transitionNegativeResultRecordState({
+        identity: nid,
+        revision_id: "rev:withdrawn-1",
+        expected_head_revision_id: "rev:initial",
+        transition: {
+          to: "withdrawn",
+          authority_agent: OPS_HUMAN,
+          reason: "withdraw",
+          decision_ref: "decision:ref-ops-117",
+          at: OPS_AT,
+          event_id: "nrte:ref-ops-117-wd",
+        },
+      });
+    },
+  },
+  {
+    fixture_id: "REF-OPS-118",
+    title: "Terminal withdrawn re-transition rejects F_TRANSITION",
+    scenario: "invalid",
+    authorities: ["OPS-001", "SCI-005"],
+    expectation: { outcome: "failure", failure_code: "F_TRANSITION" },
+    async execute() {
+      const ops = makeOps("persist-sess:ref-ops-118");
+      const nid = "negresult:ref-ops-118";
+      await ops.registerNegativeResultUnit(
+        negativeResultInput(nid),
+        negativeResultRegistration("nrte:ref-ops-118-reg"),
+      );
+      await ops.transitionNegativeResultRecordState({
+        identity: nid,
+        revision_id: "rev:withdrawn-1",
+        expected_head_revision_id: "rev:initial",
+        transition: {
+          to: "withdrawn",
+          authority_agent: OPS_HUMAN,
+          reason: "withdraw",
+          decision_ref: "decision:ref-ops-118",
+          at: OPS_AT,
+          event_id: "nrte:ref-ops-118-wd",
+          withdrawal_reason: "done",
+        },
+      });
+      await ops.transitionNegativeResultRecordState({
+        identity: nid,
+        revision_id: "rev:again",
+        expected_head_revision_id: "rev:withdrawn-1",
+        transition: {
+          to: "registered",
+          authority_agent: OPS_HUMAN,
+          reason: "illegal",
+          decision_ref: "decision:ref-ops-118-b",
+          at: OPS_AT,
+          event_id: "nrte:ref-ops-118-again",
+        },
+      });
+    },
+  },
+  {
+    fixture_id: "REF-OPS-119",
+    title: "Stale head CAS rejects CONFLICT; prior head retained",
+    scenario: "invalid",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "failure", failure_code: "CONFLICT" },
+    async execute() {
+      const ops = makeOps("persist-sess:ref-ops-119");
+      const nid = "negresult:ref-ops-119";
+      await ops.registerNegativeResultUnit(
+        negativeResultInput(nid),
+        negativeResultRegistration("nrte:ref-ops-119-reg"),
+      );
+      // Head remains rev:initial; mismatched expected_head forces CAS CONFLICT
+      // (terminals cannot be used for a second legal Core transition).
+      await ops.transitionNegativeResultRecordState({
+        identity: nid,
+        revision_id: "rev:stale-attempt",
+        expected_head_revision_id: "rev:not-current",
+        transition: {
+          to: "withdrawn",
+          authority_agent: OPS_HUMAN,
+          reason: "REF-OPS-119 stale expected head",
+          decision_ref: "decision:ref-ops-119",
+          at: OPS_AT,
+          event_id: "nrte:ref-ops-119-wd",
+          withdrawal_reason: "stale attempt",
+        },
+      });
+    },
+  },
+  {
+    fixture_id: "REF-OPS-120",
+    title: "Duplicate revision_id rejects ALREADY_EXISTS",
+    scenario: "invalid",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "failure", failure_code: "ALREADY_EXISTS" },
+    async execute() {
+      const ops = makeOps("persist-sess:ref-ops-120");
+      const nid = "negresult:ref-ops-120";
+      await ops.registerNegativeResultUnit(
+        negativeResultInput(nid),
+        negativeResultRegistration("nrte:ref-ops-120-reg"),
+      );
+      const result = await ops.transitionNegativeResultRecordState({
+        identity: nid,
+        revision_id: "rev:withdrawn-1",
+        expected_head_revision_id: "rev:initial",
+        transition: {
+          to: "withdrawn",
+          authority_agent: OPS_HUMAN,
+          reason: "withdraw",
+          decision_ref: "decision:ref-ops-120",
+          at: OPS_AT,
+          event_id: "nrte:ref-ops-120-wd",
+          withdrawal_reason: "done",
+        },
+      });
+      await ops.repository.create(result.entity);
+    },
+  },
+  {
+    fixture_id: "REF-OPS-121",
+    title: "Claim.qualified_by coexistence with persisted Negative Result",
+    scenario: "valid",
+    authorities: ["OPS-001", "SCI-001", "SCI-005"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-121");
+      const nid = "negresult:ref-ops-121";
+      const claimId = "claim:ref-ops-121";
+      await ops.registerNegativeResultUnit(
+        negativeResultInput(nid, { claim_refs: [claimId] }),
+        negativeResultRegistration("nrte:ref-ops-121"),
+      );
+      const claim = await ops.registerClaimUnit({
+        ...claimInput(claimId),
+        qualified_by: [nid],
+      });
+      check.equal("qualified_by", claim.claim.qualified_by?.[0], nid);
+      const nr = await ops.getNegativeResultUnit(nid);
+      const decoded = negativeResultFromNegativeResultUnitPayload(nr.payload);
+      check.equal("NR claim_refs", decoded.claim_refs?.[0], claimId);
+      check.equal("claim standing", claim.claim.standing, "draft_unverified");
+    },
+  },
+  {
+    fixture_id: "REF-OPS-122",
+    title: "contradiction_refs coexistence (persisted + absent Contradiction)",
+    scenario: "valid",
+    authorities: ["OPS-001", "SCI-005"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-122");
+      const cid = "contradiction:ref-ops-122";
+      await ops.registerContradictionUnit(
+        contradictionInput(cid, [
+          "claim:ref-ops-122-a",
+          "claim:ref-ops-122-b",
+        ]),
+      );
+      const nid = "negresult:ref-ops-122";
+      const r = await ops.registerNegativeResultUnit(
+        negativeResultInput(nid, {
+          contradiction_refs: [cid, "contradiction:ref-ops-122-absent"],
+        }),
+        negativeResultRegistration("nrte:ref-ops-122"),
+      );
+      const related = r.unit.envelope.references.filter(
+        (x) => x.role === "related_contradiction",
+      );
+      check.equal("contradiction_refs count", related.length, 2);
+      check.equal("persisted contradiction", related[0]?.identity, cid);
+    },
+  },
+  {
+    fixture_id: "REF-OPS-123",
+    title: "claim_refs absent from Persistence still registers",
+    scenario: "valid",
+    authorities: ["OPS-001", "SCI-005"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-123");
+      const r = await ops.registerNegativeResultUnit(
+        negativeResultInput("negresult:ref-ops-123", {
+          claim_refs: ["claim:ref-ops-123-absent"],
+        }),
+        negativeResultRegistration("nrte:ref-ops-123"),
+      );
+      check.equal("registered", r.negativeResult.record_state, "registered");
+    },
+  },
+  {
+    fixture_id: "REF-OPS-124",
+    title: "transition revision_id rev:initial → OpsError",
+    scenario: "invalid",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "failure", failure_code: "INVALID_COMMAND_STATE" },
+    async execute() {
+      const ops = makeOps("persist-sess:ref-ops-124");
+      const nid = "negresult:ref-ops-124";
+      await ops.registerNegativeResultUnit(
+        negativeResultInput(nid),
+        negativeResultRegistration("nrte:ref-ops-124"),
+      );
+      await ops.transitionNegativeResultRecordState({
+        identity: nid,
+        revision_id: "rev:initial",
+        expected_head_revision_id: "rev:initial",
+        transition: {
+          to: "withdrawn",
+          authority_agent: OPS_HUMAN,
+          reason: "bad",
+          decision_ref: "decision:ref-ops-124",
+          at: OPS_AT,
+          event_id: "nrte:ref-ops-124-wd",
+          withdrawal_reason: "x",
+        },
+      });
+    },
+  },
+  {
+    fixture_id: "REF-OPS-125",
+    title: "Immutability of rev:initial after withdraw",
+    scenario: "valid",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-125");
+      const nid = "negresult:ref-ops-125";
+      const created = await ops.registerNegativeResultUnit(
+        negativeResultInput(nid),
+        negativeResultRegistration("nrte:ref-ops-125"),
+      );
+      const before = await ops.exportNegativeResultUnitRevision(nid, "rev:initial");
+      await ops.transitionNegativeResultRecordState({
+        identity: nid,
+        revision_id: "rev:withdrawn-1",
+        expected_head_revision_id: "rev:initial",
+        transition: {
+          to: "withdrawn",
+          authority_agent: OPS_HUMAN,
+          reason: "withdraw",
+          decision_ref: "decision:ref-ops-125",
+          at: OPS_AT,
+          event_id: "nrte:ref-ops-125-wd",
+          withdrawal_reason: "done",
+        },
+      });
+      const after = await ops.exportNegativeResultUnitRevision(nid, "rev:initial");
+      check.equal("rev:initial unchanged", after, before);
+      check.equal(
+        "created state still registered in initial",
+        created.negativeResult.record_state,
+        "registered",
+      );
+    },
+  },
+  {
+    fixture_id: "REF-OPS-126",
+    title: "Lineage lists both revisions with predecessor chain",
+    scenario: "valid",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-126");
+      const nid = "negresult:ref-ops-126";
+      await ops.registerNegativeResultUnit(
+        negativeResultInput(nid),
+        negativeResultRegistration("nrte:ref-ops-126"),
+      );
+      await ops.transitionNegativeResultRecordState({
+        identity: nid,
+        revision_id: "rev:withdrawn-1",
+        expected_head_revision_id: "rev:initial",
+        transition: {
+          to: "withdrawn",
+          authority_agent: OPS_HUMAN,
+          reason: "withdraw",
+          decision_ref: "decision:ref-ops-126",
+          at: OPS_AT,
+          event_id: "nrte:ref-ops-126-wd",
+          withdrawal_reason: "done",
+        },
+      });
+      const lineage = await ops.getNegativeResultLineage(nid);
+      check.equal("lineage length", lineage.length, 2);
+      const initial = lineage.find((e) => e.revision_id === "rev:initial");
+      const next = lineage.find((e) => e.revision_id === "rev:withdrawn-1");
+      check.ok("has initial", initial !== undefined);
+      check.equal("predecessor", next?.predecessor_revision_id, "rev:initial");
+    },
+  },
+  {
+    fixture_id: "REF-OPS-127",
+    title: "Decode round-trip reconstructs content + refs + NRTE",
+    scenario: "valid",
+    authorities: ["OPS-001", "ENC-001"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-127");
+      const nid = "negresult:ref-ops-127";
+      const claim = "claim:ref-ops-127";
+      await ops.registerNegativeResultUnit(
+        negativeResultInput(nid, { claim_refs: [claim] }),
+        negativeResultRegistration("nrte:ref-ops-127"),
+      );
+      await ops.transitionNegativeResultRecordState({
+        identity: nid,
+        revision_id: "rev:withdrawn-1",
+        expected_head_revision_id: "rev:initial",
+        transition: {
+          to: "withdrawn",
+          authority_agent: OPS_HUMAN,
+          reason: "withdraw",
+          decision_ref: "decision:ref-ops-127",
+          at: OPS_AT,
+          event_id: "nrte:ref-ops-127-wd",
+          withdrawal_reason: "done",
+        },
+      });
+      const entity = await ops.getNegativeResultUnit(nid);
+      const decoded = negativeResultFromNegativeResultUnitPayload(entity.payload);
+      check.equal("state", decoded.record_state, "withdrawn");
+      check.equal("claim_refs", decoded.claim_refs?.[0], claim);
+      check.equal("NRTE", decoded.record_transition_log?.length, 2);
+      const encoder = new CanonicalEncoder();
+      const reassembled = await encoder.assemble(decoded);
+      check.equal("unit_kind", reassembled.envelope.unit_kind, "NegativeResultUnit");
+      check.equal("intact", reassembled.intact, true);
+    },
+  },
+  {
+    fixture_id: "REF-OPS-128",
+    title: "Explicit membership; create/transition do not auto-register",
+    scenario: "valid",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-128");
+      const nid = "negresult:ref-ops-128";
+      const session = ops.openSession({
+        research_session_id: "research:session:ref-ops-128",
+      });
+      await ops.registerNegativeResultUnit(
+        negativeResultInput(nid),
+        negativeResultRegistration("nrte:ref-ops-128"),
+      );
+      check.equal("no auto members", session.members().length, 0);
+      ops.registerMember(session, {
+        entity_kind: "CanonicalUnit",
+        unit_kind: "NegativeResultUnit",
+        identity: nid,
+      });
+      check.equal("member count", session.members().length, 1);
+      check.equal("member identity", session.members()[0]?.identity, nid);
+    },
+  },
+  {
+    fixture_id: "REF-OPS-129",
+    title: "Snapshots frozen shape; persistence contains NR revisions + head",
+    scenario: "valid",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-129");
+      const nid = "negresult:ref-ops-129";
+      const session = ops.openSession({
+        research_session_id: "research:session:ref-ops-129",
+      });
+      const ws = ops.openWorkspace({
+        research_workspace_id: "workspace:ref-ops-129",
+      });
+      await ops.registerNegativeResultUnit(
+        negativeResultInput(nid),
+        negativeResultRegistration("nrte:ref-ops-129"),
+      );
+      ops.registerMember(session, {
+        entity_kind: "CanonicalUnit",
+        unit_kind: "NegativeResultUnit",
+        identity: nid,
+      });
+      ops.registerWorkspaceMember(ws, {
+        entity_kind: "CanonicalUnit",
+        unit_kind: "NegativeResultUnit",
+        identity: nid,
+      });
+      await ops.transitionNegativeResultRecordState({
+        identity: nid,
+        revision_id: "rev:withdrawn-1",
+        expected_head_revision_id: "rev:initial",
+        transition: {
+          to: "withdrawn",
+          authority_agent: OPS_HUMAN,
+          reason: "REF-OPS-129",
+          decision_ref: "decision:ref-ops-129",
+          at: OPS_AT,
+          event_id: "nrte:ref-ops-129-wd",
+          withdrawal_reason: "done",
+        },
+      });
+      const snap = await ops.snapshotView(session);
+      check.equal(
+        "session id shape",
+        snap.research_session_id,
+        "research:session:ref-ops-129",
+      );
+      const keys = snap.persistence_snapshot.entities.map((e) => e.storage_key);
+      check.ok(
+        "initial",
+        keys.some((k) => k.includes("NegativeResultUnit") && k.includes(":rev:initial")),
+      );
+      check.ok(
+        "successor",
+        keys.some((k) => k.includes(":rev:withdrawn-1")),
+      );
+      check.ok(
+        "head",
+        keys.some((k) =>
+          k.includes("persist:RevisionHead:NegativeResultUnit:"),
+        ),
+      );
+      const wsnap = await ops.workspaceSnapshotView(ws);
+      check.equal(
+        "workspace id",
+        wsnap.research_workspace_id,
+        "workspace:ref-ops-129",
+      );
+    },
+  },
+  {
+    fixture_id: "REF-OPS-130",
+    title: "Operational event ops.negative_result_record_state_revision",
+    scenario: "valid",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-130");
+      const nid = "negresult:ref-ops-130";
+      await ops.registerNegativeResultUnit(
+        negativeResultInput(nid),
+        negativeResultRegistration("nrte:ref-ops-130"),
+      );
+      await ops.transitionNegativeResultRecordState({
+        identity: nid,
+        revision_id: "rev:withdrawn-1",
+        expected_head_revision_id: "rev:initial",
+        append_event: true,
+        transition: {
+          to: "withdrawn",
+          authority_agent: OPS_HUMAN,
+          reason: "withdraw",
+          decision_ref: "decision:ref-ops-130",
+          at: OPS_AT,
+          event_id: "nrte:ref-ops-130-wd",
+          withdrawal_reason: "done",
+        },
+      });
+      const events = await ops.getEvents(nid);
+      const opsEvents = events.filter(
+        (e) => e.event_type === "ops.negative_result_record_state_revision",
+      );
+      check.equal("ops event count", opsEvents.length, 1);
+      check.equal("ops event_id", opsEvents[0]?.event_id, "ops:nrte:ref-ops-130-wd");
+      const defaultOps = makeOps("persist-sess:ref-ops-130-default");
+      await defaultOps.registerNegativeResultUnit(
+        negativeResultInput("negresult:ref-ops-130-default"),
+        negativeResultRegistration("nrte:ref-ops-130-default"),
+      );
+      await defaultOps.transitionNegativeResultRecordState({
+        identity: "negresult:ref-ops-130-default",
+        revision_id: "rev:withdrawn-1",
+        expected_head_revision_id: "rev:initial",
+        transition: {
+          to: "withdrawn",
+          authority_agent: OPS_HUMAN,
+          reason: "withdraw",
+          decision_ref: "decision:ref-ops-130-d",
+          at: OPS_AT,
+          event_id: "nrte:ref-ops-130-d-wd",
+          withdrawal_reason: "done",
+        },
+      });
+      const none = (
+        await defaultOps.getEvents("negresult:ref-ops-130-default")
+      ).filter((e) => e.event_type === "ops.negative_result_record_state_revision");
+      check.equal("default no ops event", none.length, 0);
+    },
+  },
+  {
+    fixture_id: "REF-OPS-131",
+    title: "Negative Result OPS does not create Persistence.Relationship entities",
+    scenario: "valid",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-131");
+      const nid = "negresult:ref-ops-131";
+      await ops.registerNegativeResultUnit(
+        negativeResultInput(nid, {
+          claim_refs: ["claim:ref-ops-131"],
+          evidence_refs: ["evidence:ref-ops-131"],
+          contradiction_refs: ["contradiction:ref-ops-131"],
+        }),
+        negativeResultRegistration("nrte:ref-ops-131"),
+      );
+      await ops.transitionNegativeResultRecordState({
+        identity: nid,
+        revision_id: "rev:withdrawn-1",
+        expected_head_revision_id: "rev:initial",
+        transition: {
+          to: "withdrawn",
+          authority_agent: OPS_HUMAN,
+          reason: "withdraw",
+          decision_ref: "decision:ref-ops-131",
+          at: OPS_AT,
+          event_id: "nrte:ref-ops-131-wd",
+          withdrawal_reason: "done",
+        },
+      });
+      const listed = await ops.repository.list({
+        filter: { entity_kind: "Relationship" },
+      });
+      check.equal("no Relationship entities", listed.total, 0);
+    },
+  },
+  {
+    fixture_id: "REF-OPS-132",
+    title: "Deterministic Negative Result export double-run",
+    scenario: "valid",
+    authorities: ["OPS-001", "SER-JSON-001"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      async function run() {
+        const ops = makeOps("persist-sess:ref-ops-132");
+        const nid = "negresult:ref-ops-132";
+        await ops.registerNegativeResultUnit(
+          negativeResultInput(nid),
+          negativeResultRegistration("nrte:ref-ops-132"),
+        );
+        await ops.transitionNegativeResultRecordState({
+          identity: nid,
+          revision_id: "rev:withdrawn-1",
+          expected_head_revision_id: "rev:initial",
+          transition: {
+            to: "withdrawn",
+            authority_agent: OPS_HUMAN,
+            reason: "withdraw",
+            decision_ref: "decision:ref-ops-132",
+            at: OPS_AT,
+            event_id: "nrte:ref-ops-132-wd",
+            withdrawal_reason: "done",
+          },
+        });
+        return ops.exportNegativeResultUnit(nid);
+      }
+      const a = await run();
+      const b = await run();
+      check.equal("deterministic export", a, b);
+    },
+  },
+  {
+    fixture_id: "REF-OPS-133",
+    title: "Missing Negative Result transition propagates NOT_FOUND",
+    scenario: "invalid",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "failure", failure_code: "NOT_FOUND" },
+    async execute() {
+      const ops = makeOps("persist-sess:ref-ops-133");
+      await ops.transitionNegativeResultRecordState({
+        identity: "negresult:ref-ops-133-missing",
+        revision_id: "rev:withdrawn-1",
+        expected_head_revision_id: "rev:initial",
+        transition: {
+          to: "withdrawn",
+          authority_agent: OPS_HUMAN,
+          reason: "missing",
+          decision_ref: "decision:ref-ops-133",
+          at: OPS_AT,
+          event_id: "nrte:ref-ops-133",
+          withdrawal_reason: "x",
         },
       });
     },

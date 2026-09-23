@@ -2,7 +2,12 @@
  * REF-OPS fixture support — deterministic OPS + Persistence harness.
  * Exercises OPS public APIs only; no fabricated scientific evidence.
  */
-import type { CreateContradictionInput, CreateEvidenceInput } from "@sciros/core";
+import type {
+  CreateContradictionInput,
+  CreateEvidenceInput,
+  CreateNegativeResultInput,
+  NegativeResultRecordTransitionInput,
+} from "@sciros/core";
 import {
   createResearchOperations,
   type ResearchOperations,
@@ -87,6 +92,48 @@ export function contradictionInput(
     },
     created_by: OPS_HUMAN,
     created_at: OPS_AT,
+    ...overrides,
+  };
+}
+
+/** Deterministic Negative Result createRegistered content for REF-OPS NR fixtures. */
+export function negativeResultInput(
+  negativeResultId: string,
+  overrides: Partial<CreateNegativeResultInput> = {},
+): CreateNegativeResultInput {
+  return {
+    negative_result_id: negativeResultId,
+    summary: "REF-OPS orchestration negative result",
+    description: "expected observation not observed under protocol",
+    expected_observation: "signal present",
+    observed_absence: "signal absent",
+    scope: OPS_SCOPE,
+    protocol_ref: `protocol:${negativeResultId.replace(/^negresult:/, "")}`,
+    sensitivity_context: "nominal",
+    provenance: {
+      completeness: "complete",
+      recorded_at: OPS_AT,
+      custody_agent: OPS_HUMAN,
+      method_summary: "REF-OPS negative result registration",
+    },
+    created_by: OPS_HUMAN,
+    created_at: OPS_AT,
+    ...overrides,
+  };
+}
+
+/** Human-gated registration input for createRegistered (O-024-02 / O-024-05). */
+export function negativeResultRegistration(
+  eventId: string,
+  overrides: Partial<NegativeResultRecordTransitionInput> = {},
+): NegativeResultRecordTransitionInput {
+  return {
+    to: "registered",
+    authority_agent: OPS_HUMAN,
+    reason: "REF-OPS negative result registration",
+    decision_ref: `decision:${eventId.replace(/^nrte:/, "")}`,
+    at: OPS_AT,
+    event_id: eventId,
     ...overrides,
   };
 }

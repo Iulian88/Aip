@@ -1,0 +1,120 @@
+{
+  "sprint": 24,
+  "subject": "Negative Result OPS Under Model C",
+  "scope": "Negative Result create-once OPS via NegativeResultFactory.createRegistered and post-persist Record State OPS via NegativeResultTransitionService.transition (registered → withdrawn) under Model C; OPS-local decode; no Persistence.Relationship scientific graph; no Claim.qualified_by reverse sync; no ENC AI-marker changes; no Verification OPS; no generic lifecycle",
+  "spec": "SPEC-024 v0.1.0-DRAFT (audited)",
+  "architecture": {
+    "model": "Model C",
+    "model_description": "Stable Scientific Identity + Immutable Revisions + RevisionHead + CAS head advancement",
+    "unit_kind": "NegativeResultUnit",
+    "revision_key": "persist:CanonicalUnit:{unit_kind}:{scientific_identity}:{revision_id}",
+    "initial_revision": "rev:initial",
+    "subsequent_revision": "caller-supplied rev:…",
+    "lineage": "PersistenceEntity.predecessor_revision_id = expected_head_revision_id",
+    "revision_head_key": "persist:RevisionHead:NegativeResultUnit:{identity}",
+    "head_advancement": "advanceHead (replace + expected_version CAS)",
+    "scientific_authority": "Scientific Core NegativeResultFactory.createRegistered + NegativeResultTransitionService.transition (SCI-005)",
+    "ops_api": [
+      "registerNegativeResultUnit",
+      "transitionNegativeResultRecordState"
+    ],
+    "decoder": "negativeResultFromNegativeResultUnitPayload",
+    "encoder": "CanonicalEncoder.assemble (NegativeResultUnit)",
+    "operational_event": "ops.negative_result_record_state_revision (optional; operational only)",
+    "chain": "OPS → REF-OPS → ReferenceRunner → ReferenceReport → ConformanceEngine(profile) → ConformanceReport(profile_id) → CertificationEngine → Certificate",
+    "conformance_engines": 1,
+    "certification_engines": 1
+  },
+  "audit": {
+    "architecture_audit": "ARCHITECTURE-AUDIT-024 / FINAL-ARCHITECTURE-RE-AUDIT-024 APPROVED WITH OBSERVATIONS",
+    "code_audit": "CODE-AUDIT-024 APPROVED WITH OBSERVATIONS",
+    "required_patches": 0,
+    "blockers": 0
+  },
+  "execution": {
+    "status": "COMPLETE",
+    "create_path": "NegativeResultFactory.createRegistered → CanonicalEncoder.assemble → entityFromCanonicalUnit → Persistence.create → ensureInitialHead",
+    "transition_path": "getNegativeResultUnit → negativeResultFromNegativeResultUnitPayload → NegativeResultTransitionService.transition → CanonicalEncoder.assemble → Persistence.create → advanceHead CAS → optional appendEvent"
+  },
+  "corpora": {
+    "REF_CORPUS_SCI": 44,
+    "REF_CORPUS_OPS": 133,
+    "REF_CORPUS_FULL": 177,
+    "sci_pass": 44,
+    "ops_pass": 133,
+    "full_pass": 177,
+    "negative_result_ops_fixtures": "REF-OPS-106…REF-OPS-133"
+  },
+  "sci": {
+    "profile_id": "CONF-001@1.0.0",
+    "corpus": "REF-CORPUS-SCI",
+    "conformance_overall": "COMPLIANT",
+    "certification_decision": "CERTIFIED",
+    "certificate_id": "cert:sess-sprint-024-formal-sci:sciros-reference-test-suite:certified",
+    "scope": [
+      "SCI-000",
+      "SCI-001",
+      "SCI-002",
+      "SCI-003",
+      "SCI-004",
+      "SCI-005",
+      "SCI-006",
+      "ENC-001",
+      "SER-001",
+      "SER-JSON-001",
+      "RPR-001",
+      "ADR-0006",
+      "CONF-001"
+    ]
+  },
+  "ops": {
+    "profile_id": "CONF-001@1.1.0-OPS",
+    "corpus": "REF-CORPUS-FULL",
+    "ops_authoring_corpus": "REF-CORPUS-OPS",
+    "conformance_overall": "COMPLIANT",
+    "certification_decision": "CERTIFIED",
+    "certificate_id": "cert:sess-sprint-024-formal-ops:sciros-full-reference-corpus:certified",
+    "scope": [
+      "SCI-000",
+      "SCI-001",
+      "SCI-002",
+      "SCI-003",
+      "SCI-004",
+      "SCI-005",
+      "SCI-006",
+      "ENC-001",
+      "SER-001",
+      "SER-JSON-001",
+      "RPR-001",
+      "ADR-0006",
+      "CONF-001",
+      "OPS-001"
+    ]
+  },
+  "regression": {
+    "TEST-016": "10/10 PASS",
+    "TEST-017": "12/12 PASS",
+    "TEST-018": "10/10 PASS",
+    "TEST-019": "10/10 PASS",
+    "TEST-020": "22/22 PASS",
+    "TEST-021": "15/15 PASS",
+    "TEST-022": "7/7 PASS",
+    "TEST-023": "7/7 PASS",
+    "TEST-024": "7/7 PASS",
+    "smoke": "smoke-023 / smoke-024 PASS",
+    "typecheck": "PASS",
+    "lint": "PASS",
+    "build": "PASS",
+    "determinism": "PASS"
+  },
+  "observations_non_blocking": [
+    "O-024-CA-01: Persistence journal may contain mirrored NRTE; REF-OPS-130 asserts absence of ops.negative_result_record_state_revision when append_event default",
+    "O-024-CA-02: Documentation-anomaly concern from CODE-AUDIT prompt not present in current EXEC-024_REPORT; IMPLEMENTATION.md header is EXEC-SPRINT-024",
+    "O-024-CA-03: Stale-CAS / partial-write for terminal-capable units uses mismatched expected_head while still registered (REF-OPS-119 / T024-004)",
+    "OQ-024-001 / OQ-024-007 remain deferred",
+    "O-CERT-024-01: smoke-023 re-run for PASS verification; SMOKE_023_PASS restored to HEAD content (historical Sprint 023 marker unchanged)"
+  ],
+  "formal_status": "CERTIFIED",
+  "closure": "PENDING_GIT_CLOSURE",
+  "note": "Engine CertificationDecision CERTIFIED for SCI and OPS; non-blocking observations recorded separately. Sprint not closed until final Git commit+push."
+}
