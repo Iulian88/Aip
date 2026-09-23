@@ -1,20 +1,26 @@
 /**
- * ResearchOperations — OPS orchestration façade (SPEC-016A / SPEC-018 / SPEC-019 / SPEC-020 / SPEC-021 / SPEC-022).
+ * ResearchOperations — OPS orchestration façade (SPEC-016A / SPEC-018 / SPEC-019 / SPEC-020 / SPEC-021 / SPEC-022 / SPEC-023).
  * Orchestrates Core → ENC → Persistence → SER. Does not author scientific meaning.
  * Sprint 020: Model C + Claim Standing post-persist.
  * Sprint 021: Evidence Record State post-persist (Model C).
  * Sprint 022: Evidence Grade assignment post-persist (Model C).
+ * Sprint 023: Contradiction create-once + Record State post-persist (Model C).
  */
 
 import {
   ClaimFactory,
   ClaimTransitionService,
+  ContradictionFactory,
+  ContradictionTransitionService,
   EvidenceFactory,
   EvidenceGradeService,
   EvidenceTransitionService,
   type Claim,
+  type Contradiction,
   type CreateClaimInput,
+  type CreateContradictionInput,
   type CreateEvidenceInput,
+  type ContradictionRecordTransitionInput,
   type Evidence,
   type EvidenceRecordTransitionInput,
   type GradeAssignmentInput,
@@ -48,6 +54,7 @@ import type {
   WorkspaceMemberRef,
 } from "../workspace/types.js";
 import { claimFromClaimUnitPayload } from "./claim-from-unit.js";
+import { contradictionFromContradictionUnitPayload } from "./contradiction-from-unit.js";
 import { evidenceFromEvidenceUnitPayload } from "./evidence-from-unit.js";
 
 export interface ResearchOperationsDeps {
@@ -56,6 +63,8 @@ export interface ResearchOperationsDeps {
   readonly evidenceFactory: EvidenceFactory;
   readonly evidenceTransitions: EvidenceTransitionService;
   readonly evidenceGrades: EvidenceGradeService;
+  readonly contradictionFactory: ContradictionFactory;
+  readonly contradictionTransitions: ContradictionTransitionService;
   readonly encoder: CanonicalEncoder;
   readonly jsonEncoder: JsonEncoder;
   /** Infrastructure PersistenceSession — distinct from ResearchSession. */
@@ -147,12 +156,45 @@ export interface AssignEvidenceGradeResult {
 
 export type EvidenceLineageEntry = ClaimLineageEntry;
 
+export interface RegisterContradictionUnitOptions {
+  /** Model C revision id; default rev:initial. Create-once only. */
+  readonly revision_id?: string;
+}
+
+export interface RegisterContradictionUnitResult {
+  readonly contradiction: Contradiction;
+  readonly unit: CanonicalUnit;
+  readonly entity: PersistenceEntity;
+}
+
+export interface TransitionContradictionRecordStateInput {
+  readonly identity: string;
+  readonly transition: ContradictionRecordTransitionInput;
+  /** New immutable revision id (caller-supplied rev:…). */
+  readonly revision_id: string;
+  /** Expected current RevisionHead pointer (CAS). */
+  readonly expected_head_revision_id: string;
+  /** When true, append ops.contradiction_record_state_revision operational event. */
+  readonly append_event?: boolean;
+}
+
+export interface TransitionContradictionRecordStateResult {
+  readonly contradiction: Contradiction;
+  readonly unit: CanonicalUnit;
+  readonly entity: PersistenceEntity;
+  readonly head_revision_id: string;
+}
+
+export type ContradictionLineageEntry = ClaimLineageEntry;
+
 export class ResearchOperations {
   private readonly claims: ClaimFactory;
   private readonly claimTransitions: ClaimTransitionService;
   private readonly evidenceFactory: EvidenceFactory;
   private readonly evidenceTransitions: EvidenceTransitionService;
   private readonly evidenceGrades: EvidenceGradeService;
+  private readonly contradictionFactory: ContradictionFactory;
+  private readonly contradictionTransitions: ContradictionTransitionService;
   private readonly encoder: CanonicalEncoder;
   private readonly jsonEncoder: JsonEncoder;
   private readonly persistenceSession: PersistenceSession;
@@ -165,6 +207,8 @@ export class ResearchOperations {
     this.evidenceFactory = deps.evidenceFactory;
     this.evidenceTransitions = deps.evidenceTransitions;
     this.evidenceGrades = deps.evidenceGrades;
+    this.contradictionFactory = deps.contradictionFactory;
+    this.contradictionTransitions = deps.contradictionTransitions;
     this.encoder = deps.encoder;
     this.jsonEncoder = deps.jsonEncoder;
     this.persistenceSession = deps.persistenceSession;
@@ -474,6 +518,106 @@ export class ResearchOperations {
   }
 
   /**
+   * Core ContradictionFactory.createOpen → ENC assemble → Persistence create (Model C rev:initial) → ensureInitialHead.
+   * Does NOT append events or register membership (call those separately — Claim/Evidence parity).
+   * Lower-layer errors propagate unchanged.
+   */
+  async registerContradictionUnit(
+    input: CreateContradictionInput,
+    options?: RegisterContradictionUnitOptions,
+  ): Promise<RegisterContradictionUnitResult> {
+    const revision_id = options?.revision_id ?? INITIAL_REVISION_ID;
+    assertRevisionId(revision_id);
+    if (revision_id !== INITIAL_REVISION_ID) {
+      throw new OpsError(
+        "INVALID_COMMAND_STATE",
+        "registerContradictionUnit creates initial revision only; use transitionContradictionRecordState for later revisions",
+      );
+    }
+    const contradiction = this.contradictionFactory.createOpen(input);
+    const unit = await this.encoder.assemble(contradiction);
+    const entity = entityFromCanonicalUnit(unit, { revision_id });
+    const stored = await this.repository.create(entity);
+    await this.repository.ensureInitialHead(
+      contradiction.contradiction_id,
+      "ContradictionUnit",
+      revision_id,
+    );
+    return { contradiction, unit, entity: stored };
+  }
+
+  /**
+   * Post-persist Contradiction Record State transition (Model C).
+   * Core validates → new immutable revision → advanceHead CAS → optional appendEvent.
+   * Partial-write: if advanceHead fails after create, revision row may exist without becoming head.
+   */
+  async transitionContradictionRecordState(
+    input: TransitionContradictionRecordStateInput,
+  ): Promise<TransitionContradictionRecordStateResult> {
+    assertRevisionId(input.revision_id);
+    assertRevisionId(input.expected_head_revision_id, "expected_head_revision_id");
+    if (input.revision_id === INITIAL_REVISION_ID) {
+      throw new OpsError(
+        "INVALID_COMMAND_STATE",
+        "transitionContradictionRecordState revision_id must not be rev:initial",
+      );
+    }
+    if (input.revision_id === input.expected_head_revision_id) {
+      throw new OpsError(
+        "INVALID_COMMAND_STATE",
+        "revision_id must differ from expected_head_revision_id",
+      );
+    }
+
+    const priorEntity = await this.getContradictionUnit(input.identity);
+    const prior = contradictionFromContradictionUnitPayload(priorEntity.payload);
+    const contradiction = this.contradictionTransitions.transition(
+      prior,
+      input.transition,
+    );
+    const unit = await this.encoder.assemble(contradiction);
+
+    const entity = entityFromCanonicalUnit(unit, {
+      revision_id: input.revision_id,
+      predecessor_revision_id: input.expected_head_revision_id,
+    });
+    const stored = await this.repository.create(entity);
+
+    const head = await this.repository.advanceHead(
+      input.identity,
+      "ContradictionUnit",
+      input.expected_head_revision_id,
+      input.revision_id,
+    );
+
+    if (input.append_event === true) {
+      const event_id =
+        input.transition.event_id !== undefined
+          ? `ops:${input.transition.event_id}`
+          : `ops:contradiction_record_state:${input.identity}:${input.revision_id}`;
+      await this.repository.appendEvent(input.identity, {
+        event_id,
+        parent_identity: input.identity,
+        event_type: "ops.contradiction_record_state_revision",
+        payload: Object.freeze({
+          revision_id: input.revision_id,
+          predecessor_revision_id: input.expected_head_revision_id,
+          unit_kind: "ContradictionUnit",
+          to_record_state: input.transition.to,
+        }),
+        ordinal: 0,
+      });
+    }
+
+    return {
+      contradiction,
+      unit,
+      entity: stored,
+      head_revision_id: head.content_version,
+    };
+  }
+
+  /**
    * Explicit Persistence.appendEvent — sole event journal (SPEC-016A P-016-004).
    * Caller must supply deterministic event_id. Lower-layer errors propagate unchanged.
    */
@@ -677,6 +821,67 @@ export class ResearchOperations {
     const entity = await this.getEvidenceUnitRevision(identity, revision_id);
     return this.jsonEncoder.encode(entity.payload);
   }
+
+  async getContradictionUnit(identity: string): Promise<PersistenceEntity> {
+    return this.repository.get(identity, "CanonicalUnit", {
+      unit_kind: "ContradictionUnit",
+    });
+  }
+
+  async getContradictionUnitRevision(
+    identity: string,
+    revision_id: string,
+  ): Promise<PersistenceEntity> {
+    return this.repository.get(identity, "CanonicalUnit", {
+      unit_kind: "ContradictionUnit",
+      revision_id,
+    });
+  }
+
+  async getContradictionHead(identity: string): Promise<PersistenceEntity> {
+    return this.repository.getHead(identity, "ContradictionUnit");
+  }
+
+  async getContradictionLineage(
+    identity: string,
+  ): Promise<readonly ContradictionLineageEntry[]> {
+    const rows = await this.repository.listRevisions(
+      identity,
+      "ContradictionUnit",
+    );
+    return Object.freeze(
+      rows.map((e) =>
+        Object.freeze({
+          revision_id: e.revision_id ?? INITIAL_REVISION_ID,
+          ...(e.predecessor_revision_id !== undefined
+            ? { predecessor_revision_id: e.predecessor_revision_id }
+            : {}),
+          content_version: e.content_version,
+          storage_key: e.storage_key,
+        }),
+      ),
+    );
+  }
+
+  /**
+   * SER-JSON-001 encode of head-resolved ContradictionUnit payload.
+   * Lower-layer errors propagate unchanged.
+   */
+  async exportContradictionUnit(identity: string): Promise<string> {
+    const entity = await this.getContradictionUnit(identity);
+    return this.jsonEncoder.encode(entity.payload);
+  }
+
+  async exportContradictionUnitRevision(
+    identity: string,
+    revision_id: string,
+  ): Promise<string> {
+    const entity = await this.getContradictionUnitRevision(
+      identity,
+      revision_id,
+    );
+    return this.jsonEncoder.encode(entity.payload);
+  }
 }
 
 /** Convenience factory with default Core/ENC/SER instances. */
@@ -698,6 +903,8 @@ export function createResearchOperations(
     evidenceFactory: new EvidenceFactory(),
     evidenceTransitions: new EvidenceTransitionService(),
     evidenceGrades: new EvidenceGradeService(),
+    contradictionFactory: new ContradictionFactory(),
+    contradictionTransitions: new ContradictionTransitionService(),
     encoder: new CanonicalEncoder(),
     jsonEncoder: new JsonEncoder(),
     persistenceSession,

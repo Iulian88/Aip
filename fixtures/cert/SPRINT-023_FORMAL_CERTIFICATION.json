@@ -1,0 +1,121 @@
+{
+  "sprint": 23,
+  "subject": "Contradiction OPS Under Model C",
+  "scope": "Contradiction create-once OPS via ContradictionFactory.createOpen and post-persist Record State OPS via ContradictionTransitionService.transition under Model C; OPS-local decode; no Persistence.Relationship scientific graph; no Claim.contested_by reverse sync; no ENC AI-marker changes; no generic lifecycle",
+  "spec": "SPEC-023 v0.1.0-DRAFT (audited)",
+  "architecture": {
+    "model": "Model C",
+    "model_description": "Stable Scientific Identity + Immutable Revisions + RevisionHead + CAS head advancement",
+    "unit_kind": "ContradictionUnit",
+    "revision_key": "persist:CanonicalUnit:{unit_kind}:{scientific_identity}:{revision_id}",
+    "initial_revision": "rev:initial",
+    "subsequent_revision": "caller-supplied rev:…",
+    "lineage": "PersistenceEntity.predecessor_revision_id = expected_head_revision_id",
+    "revision_head_key": "persist:RevisionHead:ContradictionUnit:{identity}",
+    "head_advancement": "advanceHead (replace + expected_version CAS)",
+    "scientific_authority": "Scientific Core ContradictionFactory.createOpen + ContradictionTransitionService.transition (SCI-004)",
+    "ops_api": [
+      "registerContradictionUnit",
+      "transitionContradictionRecordState"
+    ],
+    "decoder": "contradictionFromContradictionUnitPayload",
+    "encoder": "CanonicalEncoder.assemble (ContradictionUnit)",
+    "operational_event": "ops.contradiction_record_state_revision (optional; operational only)",
+    "chain": "OPS → REF-OPS → ReferenceRunner → ReferenceReport → ConformanceEngine(profile) → ConformanceReport(profile_id) → CertificationEngine → Certificate",
+    "conformance_engines": 1,
+    "certification_engines": 1
+  },
+  "audit": {
+    "architecture_audit": "ARCHITECTURE-AUDIT-023 / FINAL-ARCHITECTURE-RE-AUDIT-023 APPROVED WITH OBSERVATIONS",
+    "code_audit": "CODE-AUDIT-023 APPROVED WITH OBSERVATIONS",
+    "required_patches": 0,
+    "blockers": 0
+  },
+  "execution": {
+    "status": "COMPLETE",
+    "create_path": "ContradictionFactory.createOpen → CanonicalEncoder.assemble → entityFromCanonicalUnit → Persistence.create → ensureInitialHead",
+    "transition_path": "getContradictionUnit → contradictionFromContradictionUnitPayload → ContradictionTransitionService.transition → CanonicalEncoder.assemble → Persistence.create → advanceHead CAS → optional appendEvent"
+  },
+  "corpora": {
+    "REF_CORPUS_SCI": 44,
+    "REF_CORPUS_OPS": 105,
+    "REF_CORPUS_FULL": 149,
+    "sci_pass": 44,
+    "ops_pass": 105,
+    "full_pass": 149,
+    "contradiction_ops_fixtures": "REF-OPS-077…REF-OPS-105"
+  },
+  "sci": {
+    "profile_id": "CONF-001@1.0.0",
+    "corpus": "REF-CORPUS-SCI",
+    "conformance_overall": "COMPLIANT",
+    "certification_decision": "CERTIFIED",
+    "certificate_id": "cert:sess-sprint-023-formal-sci:sciros-reference-test-suite:certified",
+    "scope": [
+      "SCI-000",
+      "SCI-001",
+      "SCI-002",
+      "SCI-003",
+      "SCI-004",
+      "SCI-005",
+      "SCI-006",
+      "ENC-001",
+      "SER-001",
+      "SER-JSON-001",
+      "RPR-001",
+      "ADR-0006",
+      "CONF-001"
+    ]
+  },
+  "ops": {
+    "profile_id": "CONF-001@1.1.0-OPS",
+    "corpus": "REF-CORPUS-FULL",
+    "ops_authoring_corpus": "REF-CORPUS-OPS",
+    "conformance_overall": "COMPLIANT",
+    "certification_decision": "CERTIFIED",
+    "certificate_id": "cert:sess-sprint-023-formal-ops:sciros-full-reference-corpus:certified",
+    "scope": [
+      "SCI-000",
+      "SCI-001",
+      "SCI-002",
+      "SCI-003",
+      "SCI-004",
+      "SCI-005",
+      "SCI-006",
+      "ENC-001",
+      "SER-001",
+      "SER-JSON-001",
+      "RPR-001",
+      "ADR-0006",
+      "CONF-001",
+      "OPS-001"
+    ]
+  },
+  "regression": {
+    "TEST-016": "10/10 PASS",
+    "TEST-017": "12/12 PASS",
+    "TEST-018": "10/10 PASS",
+    "TEST-019": "10/10 PASS",
+    "TEST-020": "22/22 PASS",
+    "TEST-021": "15/15 PASS",
+    "TEST-022": "7/7 PASS",
+    "TEST-023": "7/7 PASS",
+    "smoke": "smoke-022 / smoke-023 PASS",
+    "typecheck": "PASS",
+    "lint": "PASS",
+    "build": "PASS",
+    "determinism": "PASS"
+  },
+  "observations_non_blocking": [
+    "O-023-CA-01: Decode retains SPEC defensive <2 involves OpsError; no fixture invents that path (O-023-02)",
+    "O-023-CA-02: Stale-CAS fixtures use mismatched expected_head_revision_id while still open (terminals have no second legal Core edge)",
+    "O-023-CA-03: No OPS fixture exercises Core F8; material-note path deferred OQ-023-011; Core still enforces F8",
+    "O-023-CA-04: Persistence journal may contain mirrored CRTE; REF-OPS-101 asserts absence of ops.contradiction_record_state_revision when append_event default",
+    "O-023-CA-05: Sprint 023 design/audit docs remain untracked alongside EXEC delta pending Git closure",
+    "OQ-023-002 / OQ-023-005 / OQ-023-011 remain deferred",
+    "O-CERT-023-01: smoke-022 re-run for PASS verification; SMOKE_022_PASS restored to HEAD content (historical Sprint 022 marker unchanged)"
+  ],
+  "formal_status": "CERTIFIED",
+  "closure": "PENDING_GIT_CLOSURE",
+  "note": "Engine CertificationDecision CERTIFIED for SCI and OPS; non-blocking observations recorded separately. Sprint not closed until final Git commit+push."
+}

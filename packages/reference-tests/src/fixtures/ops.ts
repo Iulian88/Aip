@@ -3,7 +3,12 @@
  * Executable evidence for Research Operations via ReferenceRunner.
  * Authorities cite OPS-001 (+ Core/ENC/SER as exercised). No PERSIST-001.
  */
-import { OpsError, referenceAppMarker, claimFromClaimUnitPayload } from "@sciros/reference-app";
+import {
+  OpsError,
+  referenceAppMarker,
+  claimFromClaimUnitPayload,
+  contradictionFromContradictionUnitPayload,
+} from "@sciros/reference-app";
 import {
   ClaimTransitionService,
   CLINICAL_BOUNDARY_ACK,
@@ -15,6 +20,7 @@ import { stableStringify } from "@sciros/serialization";
 import type { ReferenceFixture } from "../types.js";
 import {
   claimInput,
+  contradictionInput,
   evidenceInput,
   makeOps,
   OPS_AT,
@@ -2341,6 +2347,959 @@ export const opsFixtures: readonly ReferenceFixture[] = Object.freeze([
       check.equal("head", r.head_revision_id, "rev:grade-1");
       const lineage = await ops.getEvidenceLineage(evidenceId);
       check.equal("three revisions", lineage.length, 3);
+    },
+  },
+  {
+    fixture_id: "REF-OPS-077",
+    title: "Contradiction createOpen → ContradictionUnit rev:initial + head",
+    scenario: "valid",
+    authorities: ["OPS-001", "SCI-004", "ENC-001"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-077");
+      const cid = "contradiction:ref-ops-077";
+      const claims = ["claim:ref-ops-077-a", "claim:ref-ops-077-b"] as const;
+      const evid = "evidence:ref-ops-077";
+      const r = await ops.registerContradictionUnit(
+        contradictionInput(cid, claims, { evidence_refs: [evid] }),
+      );
+      check.equal("record_state", r.contradiction.record_state, "open");
+      check.equal("CRTE empty", r.contradiction.record_transition_log?.length ?? 0, 0);
+      check.equal("unit_kind", r.unit.envelope.unit_kind, "ContradictionUnit");
+      check.equal("intact", r.unit.intact, true);
+      check.equal("revision", r.entity.revision_id, "rev:initial");
+      check.equal(
+        "content_version",
+        r.unit.envelope.content_version,
+        r.contradiction.contradiction_version,
+      );
+      const involves = r.unit.envelope.references.filter((x) => x.role === "involves");
+      const cites = r.unit.envelope.references.filter(
+        (x) => x.role === "cites_evidence",
+      );
+      check.equal("involves count", involves.length, 2);
+      check.equal("involves[0]", involves[0]?.identity, claims[0]);
+      check.equal("involves[1]", involves[1]?.identity, claims[1]);
+      check.equal("cites_evidence", cites[0]?.identity, evid);
+      const head = await ops.getContradictionHead(cid);
+      check.equal("head", head.content_version, "rev:initial");
+    },
+  },
+  {
+    fixture_id: "REF-OPS-078",
+    title: "Contradiction create with <2 involved_claims rejects Core F2; nothing persisted",
+    scenario: "invalid",
+    authorities: ["OPS-001", "SCI-004"],
+    expectation: { outcome: "failure", failure_code: "F2" },
+    async execute() {
+      const ops = makeOps("persist-sess:ref-ops-078");
+      await ops.registerContradictionUnit(
+        contradictionInput("contradiction:ref-ops-078", ["claim:ref-ops-078-only"]),
+      );
+    },
+  },
+  {
+    fixture_id: "REF-OPS-079",
+    title: "Bad Claim id in involved_claims rejects Core F3",
+    scenario: "invalid",
+    authorities: ["OPS-001", "SCI-004"],
+    expectation: { outcome: "failure", failure_code: "F3" },
+    async execute() {
+      const ops = makeOps("persist-sess:ref-ops-079");
+      await ops.registerContradictionUnit(
+        contradictionInput("contradiction:ref-ops-079", [
+          "claim:ref-ops-079-a",
+          "not-a-claim-id",
+        ]),
+      );
+    },
+  },
+  {
+    fixture_id: "REF-OPS-080",
+    title: "Bad Evidence id in evidence_refs rejects Core F4",
+    scenario: "invalid",
+    authorities: ["OPS-001", "SCI-004"],
+    expectation: { outcome: "failure", failure_code: "F4" },
+    async execute() {
+      const ops = makeOps("persist-sess:ref-ops-080");
+      await ops.registerContradictionUnit(
+        contradictionInput(
+          "contradiction:ref-ops-080",
+          ["claim:ref-ops-080-a", "claim:ref-ops-080-b"],
+          { evidence_refs: ["not-an-evidence-id"] },
+        ),
+      );
+    },
+  },
+  {
+    fixture_id: "REF-OPS-081",
+    title: "incompatibility_statement none rejects Core F9",
+    scenario: "invalid",
+    authorities: ["OPS-001", "SCI-004"],
+    expectation: { outcome: "failure", failure_code: "F9" },
+    async execute() {
+      const ops = makeOps("persist-sess:ref-ops-081");
+      await ops.registerContradictionUnit(
+        contradictionInput(
+          "contradiction:ref-ops-081",
+          ["claim:ref-ops-081-a", "claim:ref-ops-081-b"],
+          { incompatibility_statement: "none" },
+        ),
+      );
+    },
+  },
+  {
+    fixture_id: "REF-OPS-082",
+    title: "Duplicate Contradiction create rejects ALREADY_EXISTS",
+    scenario: "invalid",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "failure", failure_code: "ALREADY_EXISTS" },
+    async execute() {
+      const ops = makeOps("persist-sess:ref-ops-082");
+      const cid = "contradiction:ref-ops-082";
+      const claims = ["claim:ref-ops-082-a", "claim:ref-ops-082-b"] as const;
+      await ops.registerContradictionUnit(contradictionInput(cid, claims));
+      await ops.registerContradictionUnit(contradictionInput(cid, claims));
+    },
+  },
+  {
+    fixture_id: "REF-OPS-083",
+    title: "registerContradictionUnit non-initial revision_id → OpsError",
+    scenario: "invalid",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "failure", failure_code: "INVALID_COMMAND_STATE" },
+    async execute() {
+      const ops = makeOps("persist-sess:ref-ops-083");
+      await ops.registerContradictionUnit(
+        contradictionInput("contradiction:ref-ops-083", [
+          "claim:ref-ops-083-a",
+          "claim:ref-ops-083-b",
+        ]),
+        { revision_id: "rev:not-initial" },
+      );
+    },
+  },
+  {
+    fixture_id: "REF-OPS-084",
+    title: "Post-persist resolve resolved_by_scope_split under Model C",
+    scenario: "valid",
+    authorities: ["OPS-001", "SCI-004"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-084");
+      const cid = "contradiction:ref-ops-084";
+      const claims = ["claim:ref-ops-084-a", "claim:ref-ops-084-b"] as const;
+      const created = await ops.registerContradictionUnit(
+        contradictionInput(cid, claims),
+      );
+      const r = await ops.transitionContradictionRecordState({
+        identity: cid,
+        revision_id: "rev:resolved-scope-1",
+        expected_head_revision_id: "rev:initial",
+        transition: {
+          to: "resolved_by_scope_split",
+          authority_agent: OPS_HUMAN,
+          reason: "REF-OPS-084 resolve",
+          decision_ref: "decision:ref-ops-084",
+          at: OPS_AT,
+          event_id: "crte:ref-ops-084",
+          resolution_note: "scope split recorded",
+        },
+      });
+      check.equal("state", r.contradiction.record_state, "resolved_by_scope_split");
+      check.equal("head", r.head_revision_id, "rev:resolved-scope-1");
+      check.equal(
+        "predecessor",
+        r.entity.predecessor_revision_id,
+        "rev:initial",
+      );
+      check.equal(
+        "version unchanged",
+        r.contradiction.contradiction_version,
+        created.contradiction.contradiction_version,
+      );
+      check.equal("CRTE length", r.contradiction.record_transition_log?.length, 1);
+      check.equal("note", r.contradiction.resolution_note, "scope split recorded");
+    },
+  },
+  {
+    fixture_id: "REF-OPS-085",
+    title: "Post-persist resolved_by_supersession",
+    scenario: "valid",
+    authorities: ["OPS-001", "SCI-004"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-085");
+      const cid = "contradiction:ref-ops-085";
+      await ops.registerContradictionUnit(
+        contradictionInput(cid, ["claim:ref-ops-085-a", "claim:ref-ops-085-b"]),
+      );
+      const r = await ops.transitionContradictionRecordState({
+        identity: cid,
+        revision_id: "rev:resolved-supersession-1",
+        expected_head_revision_id: "rev:initial",
+        transition: {
+          to: "resolved_by_supersession",
+          authority_agent: OPS_HUMAN,
+          reason: "REF-OPS-085",
+          decision_ref: "decision:ref-ops-085",
+          at: OPS_AT,
+          event_id: "crte:ref-ops-085",
+          resolution_note: "supersession recorded",
+        },
+      });
+      check.equal("state", r.contradiction.record_state, "resolved_by_supersession");
+    },
+  },
+  {
+    fixture_id: "REF-OPS-086",
+    title: "Post-persist resolved_by_retraction",
+    scenario: "valid",
+    authorities: ["OPS-001", "SCI-004"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-086");
+      const cid = "contradiction:ref-ops-086";
+      await ops.registerContradictionUnit(
+        contradictionInput(cid, ["claim:ref-ops-086-a", "claim:ref-ops-086-b"]),
+      );
+      const r = await ops.transitionContradictionRecordState({
+        identity: cid,
+        revision_id: "rev:resolved-retraction-1",
+        expected_head_revision_id: "rev:initial",
+        transition: {
+          to: "resolved_by_retraction",
+          authority_agent: OPS_HUMAN,
+          reason: "REF-OPS-086",
+          decision_ref: "decision:ref-ops-086",
+          at: OPS_AT,
+          event_id: "crte:ref-ops-086",
+          resolution_note: "retraction recorded",
+        },
+      });
+      check.equal("state", r.contradiction.record_state, "resolved_by_retraction");
+    },
+  },
+  {
+    fixture_id: "REF-OPS-087",
+    title: "Post-persist unresolved_archived without resolution_note",
+    scenario: "valid",
+    authorities: ["OPS-001", "SCI-004"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-087");
+      const cid = "contradiction:ref-ops-087";
+      await ops.registerContradictionUnit(
+        contradictionInput(cid, ["claim:ref-ops-087-a", "claim:ref-ops-087-b"]),
+      );
+      const r = await ops.transitionContradictionRecordState({
+        identity: cid,
+        revision_id: "rev:archived-1",
+        expected_head_revision_id: "rev:initial",
+        transition: {
+          to: "unresolved_archived",
+          authority_agent: OPS_HUMAN,
+          reason: "REF-OPS-087 archive",
+          decision_ref: "decision:ref-ops-087",
+          at: OPS_AT,
+          event_id: "crte:ref-ops-087",
+        },
+      });
+      check.equal("state", r.contradiction.record_state, "unresolved_archived");
+      check.equal("no note", r.contradiction.resolution_note, undefined);
+    },
+  },
+  {
+    fixture_id: "REF-OPS-088",
+    title: "AI leaving open rejected with Core F6; head unchanged",
+    scenario: "invalid",
+    authorities: ["OPS-001", "SCI-004"],
+    expectation: { outcome: "failure", failure_code: "F6" },
+    async execute() {
+      const ops = makeOps("persist-sess:ref-ops-088");
+      const cid = "contradiction:ref-ops-088";
+      await ops.registerContradictionUnit(
+        contradictionInput(cid, ["claim:ref-ops-088-a", "claim:ref-ops-088-b"]),
+      );
+      await ops.transitionContradictionRecordState({
+        identity: cid,
+        revision_id: "rev:ai-resolve",
+        expected_head_revision_id: "rev:initial",
+        transition: {
+          to: "resolved_by_scope_split",
+          authority_agent: "ai:ref-ops-agent",
+          reason: "AI resolve attempt",
+          decision_ref: "decision:ref-ops-088",
+          at: OPS_AT,
+          event_id: "crte:ref-ops-088",
+          resolution_note: "should not apply",
+        },
+      });
+    },
+  },
+  {
+    fixture_id: "REF-OPS-089",
+    title: "resolved_* without resolution_note rejects Core F7",
+    scenario: "invalid",
+    authorities: ["OPS-001", "SCI-004"],
+    expectation: { outcome: "failure", failure_code: "F7" },
+    async execute() {
+      const ops = makeOps("persist-sess:ref-ops-089");
+      const cid = "contradiction:ref-ops-089";
+      await ops.registerContradictionUnit(
+        contradictionInput(cid, ["claim:ref-ops-089-a", "claim:ref-ops-089-b"]),
+      );
+      await ops.transitionContradictionRecordState({
+        identity: cid,
+        revision_id: "rev:no-note",
+        expected_head_revision_id: "rev:initial",
+        transition: {
+          to: "resolved_by_scope_split",
+          authority_agent: OPS_HUMAN,
+          reason: "REF-OPS-089",
+          decision_ref: "decision:ref-ops-089",
+          at: OPS_AT,
+          event_id: "crte:ref-ops-089",
+        },
+      });
+    },
+  },
+  {
+    fixture_id: "REF-OPS-090",
+    title: "Terminal Contradiction re-transition rejects F_TRANSITION",
+    scenario: "invalid",
+    authorities: ["OPS-001", "SCI-004"],
+    expectation: { outcome: "failure", failure_code: "F_TRANSITION" },
+    async execute() {
+      const ops = makeOps("persist-sess:ref-ops-090");
+      const cid = "contradiction:ref-ops-090";
+      await ops.registerContradictionUnit(
+        contradictionInput(cid, ["claim:ref-ops-090-a", "claim:ref-ops-090-b"]),
+      );
+      await ops.transitionContradictionRecordState({
+        identity: cid,
+        revision_id: "rev:resolved-1",
+        expected_head_revision_id: "rev:initial",
+        transition: {
+          to: "resolved_by_scope_split",
+          authority_agent: OPS_HUMAN,
+          reason: "REF-OPS-090 first",
+          decision_ref: "decision:ref-ops-090-a",
+          at: OPS_AT,
+          event_id: "crte:ref-ops-090-a",
+          resolution_note: "done",
+        },
+      });
+      await ops.transitionContradictionRecordState({
+        identity: cid,
+        revision_id: "rev:illegal-2",
+        expected_head_revision_id: "rev:resolved-1",
+        transition: {
+          to: "unresolved_archived",
+          authority_agent: OPS_HUMAN,
+          reason: "REF-OPS-090 illegal",
+          decision_ref: "decision:ref-ops-090-b",
+          at: OPS_AT,
+          event_id: "crte:ref-ops-090-b",
+        },
+      });
+    },
+  },
+  {
+    fixture_id: "REF-OPS-091",
+    title: "Stale Contradiction RevisionHead CAS rejects CONFLICT",
+    scenario: "invalid",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "failure", failure_code: "CONFLICT" },
+    async execute() {
+      const ops = makeOps("persist-sess:ref-ops-091");
+      const cid = "contradiction:ref-ops-091";
+      await ops.registerContradictionUnit(
+        contradictionInput(cid, ["claim:ref-ops-091-a", "claim:ref-ops-091-b"]),
+      );
+      // Head remains rev:initial; mismatched expected_head forces CAS CONFLICT
+      // (terminals cannot be used for a second legal Core transition).
+      await ops.transitionContradictionRecordState({
+        identity: cid,
+        revision_id: "rev:stale-attempt",
+        expected_head_revision_id: "rev:not-current",
+        transition: {
+          to: "unresolved_archived",
+          authority_agent: OPS_HUMAN,
+          reason: "REF-OPS-091 stale expected head",
+          decision_ref: "decision:ref-ops-091",
+          at: OPS_AT,
+          event_id: "crte:ref-ops-091",
+        },
+      });
+    },
+  },
+  {
+    fixture_id: "REF-OPS-092",
+    title: "Duplicate Contradiction revision_id rejects ALREADY_EXISTS",
+    scenario: "invalid",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "failure", failure_code: "ALREADY_EXISTS" },
+    async execute() {
+      const ops = makeOps("persist-sess:ref-ops-092");
+      const cid = "contradiction:ref-ops-092";
+      await ops.registerContradictionUnit(
+        contradictionInput(cid, ["claim:ref-ops-092-a", "claim:ref-ops-092-b"]),
+      );
+      const result = await ops.transitionContradictionRecordState({
+        identity: cid,
+        revision_id: "rev:resolved-1",
+        expected_head_revision_id: "rev:initial",
+        transition: {
+          to: "unresolved_archived",
+          authority_agent: OPS_HUMAN,
+          reason: "REF-OPS-092",
+          decision_ref: "decision:ref-ops-092",
+          at: OPS_AT,
+          event_id: "crte:ref-ops-092",
+        },
+      });
+      await ops.repository.create(result.entity);
+    },
+  },
+  {
+    fixture_id: "REF-OPS-093",
+    title: "Claim.contested_by coexistence with persisted Contradiction",
+    scenario: "valid",
+    authorities: ["OPS-001", "SCI-001", "SCI-004"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-093");
+      const claimA = "claim:ref-ops-093-a";
+      const claimB = "claim:ref-ops-093-b";
+      const cid = "contradiction:ref-ops-093";
+      await ops.registerClaimUnit(claimInput(claimA));
+      await ops.registerClaimUnit(claimInput(claimB));
+      await ops.registerContradictionUnit(
+        contradictionInput(cid, [claimA, claimB]),
+      );
+      const standing = await ops.transitionClaimStanding({
+        identity: claimA,
+        revision_id: "rev:standing-contested-1",
+        expected_head_revision_id: "rev:initial",
+        transition: {
+          to: "contested",
+          authority_agent: OPS_HUMAN,
+          reason: `${CLINICAL_BOUNDARY_ACK} REF-OPS-093`,
+          at: OPS_AT,
+          event_id: "ste:ref-ops-093",
+          contested_by: [cid],
+        },
+      });
+      check.equal("standing", standing.claim.standing, "contested");
+      check.equal("contested_by", standing.claim.contested_by?.[0], cid);
+      const cHead = await ops.getContradictionHead(cid);
+      check.equal("contradiction head", cHead.content_version, "rev:initial");
+      const claimHead = await ops.getClaimHead(claimA);
+      check.equal(
+        "claim head independent",
+        claimHead.content_version,
+        "rev:standing-contested-1",
+      );
+      const decoded = claimFromClaimUnitPayload(standing.entity.payload);
+      check.equal("claim contested_by preserved", decoded.contested_by?.[0], cid);
+    },
+  },
+  {
+    fixture_id: "REF-OPS-094",
+    title: "Referenced Claims absent still registers (grammar-only)",
+    scenario: "valid",
+    authorities: ["OPS-001", "SCI-004"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-094");
+      const cid = "contradiction:ref-ops-094";
+      const r = await ops.registerContradictionUnit(
+        contradictionInput(cid, [
+          "claim:ref-ops-094-absent-a",
+          "claim:ref-ops-094-absent-b",
+        ]),
+      );
+      check.equal("created", r.contradiction.contradiction_id, cid);
+      check.equal("state", r.contradiction.record_state, "open");
+    },
+  },
+  {
+    fixture_id: "REF-OPS-095",
+    title: "Invalid Contradiction transition revision identities",
+    scenario: "valid",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-095");
+      const cid = "contradiction:ref-ops-095";
+      await ops.registerContradictionUnit(
+        contradictionInput(cid, ["claim:ref-ops-095-a", "claim:ref-ops-095-b"]),
+      );
+      let initialBlocked = false;
+      try {
+        await ops.transitionContradictionRecordState({
+          identity: cid,
+          revision_id: "rev:initial",
+          expected_head_revision_id: "rev:initial",
+          transition: {
+            to: "unresolved_archived",
+            authority_agent: OPS_HUMAN,
+            reason: "bad",
+            decision_ref: "decision:ref-ops-095-a",
+            at: OPS_AT,
+            event_id: "crte:ref-ops-095-a",
+          },
+        });
+      } catch (e) {
+        initialBlocked =
+          e instanceof OpsError && e.code === "INVALID_COMMAND_STATE";
+      }
+      check.ok("rev:initial blocked", initialBlocked);
+      let equalBlocked = false;
+      try {
+        await ops.transitionContradictionRecordState({
+          identity: cid,
+          revision_id: "rev:same",
+          expected_head_revision_id: "rev:same",
+          transition: {
+            to: "unresolved_archived",
+            authority_agent: OPS_HUMAN,
+            reason: "bad",
+            decision_ref: "decision:ref-ops-095-b",
+            at: OPS_AT,
+            event_id: "crte:ref-ops-095-b",
+          },
+        });
+      } catch (e) {
+        equalBlocked =
+          e instanceof OpsError && e.code === "INVALID_COMMAND_STATE";
+      }
+      check.ok("equal ids blocked", equalBlocked);
+      let invalidId = false;
+      try {
+        await ops.transitionContradictionRecordState({
+          identity: cid,
+          revision_id: "not-a-rev",
+          expected_head_revision_id: "rev:initial",
+          transition: {
+            to: "unresolved_archived",
+            authority_agent: OPS_HUMAN,
+            reason: "bad",
+            decision_ref: "decision:ref-ops-095-c",
+            at: OPS_AT,
+            event_id: "crte:ref-ops-095-c",
+          },
+        });
+      } catch (e) {
+        invalidId =
+          e instanceof PersistenceError && e.code === "INVALID_ID";
+      }
+      check.ok("INVALID_ID", invalidId);
+    },
+  },
+  {
+    fixture_id: "REF-OPS-096",
+    title: "Prior Contradiction revision immutable after transition",
+    scenario: "valid",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-096");
+      const cid = "contradiction:ref-ops-096";
+      await ops.registerContradictionUnit(
+        contradictionInput(cid, ["claim:ref-ops-096-a", "claim:ref-ops-096-b"]),
+      );
+      const before = await ops.exportContradictionUnitRevision(cid, "rev:initial");
+      await ops.transitionContradictionRecordState({
+        identity: cid,
+        revision_id: "rev:archived-1",
+        expected_head_revision_id: "rev:initial",
+        transition: {
+          to: "unresolved_archived",
+          authority_agent: OPS_HUMAN,
+          reason: "REF-OPS-096",
+          decision_ref: "decision:ref-ops-096",
+          at: OPS_AT,
+          event_id: "crte:ref-ops-096",
+        },
+      });
+      const after = await ops.exportContradictionUnitRevision(cid, "rev:initial");
+      check.equal("prior unchanged", before, after);
+    },
+  },
+  {
+    fixture_id: "REF-OPS-097",
+    title: "Contradiction lineage predecessor chain",
+    scenario: "valid",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-097");
+      const cid = "contradiction:ref-ops-097";
+      await ops.registerContradictionUnit(
+        contradictionInput(cid, ["claim:ref-ops-097-a", "claim:ref-ops-097-b"]),
+      );
+      await ops.transitionContradictionRecordState({
+        identity: cid,
+        revision_id: "rev:archived-1",
+        expected_head_revision_id: "rev:initial",
+        transition: {
+          to: "unresolved_archived",
+          authority_agent: OPS_HUMAN,
+          reason: "REF-OPS-097",
+          decision_ref: "decision:ref-ops-097",
+          at: OPS_AT,
+          event_id: "crte:ref-ops-097",
+        },
+      });
+      const lineage = await ops.getContradictionLineage(cid);
+      check.equal("length", lineage.length, 2);
+      const successor = lineage.find((e) => e.revision_id === "rev:archived-1");
+      check.equal("predecessor", successor?.predecessor_revision_id, "rev:initial");
+    },
+  },
+  {
+    fixture_id: "REF-OPS-098",
+    title: "Decode round-trip from ContradictionUnit payload",
+    scenario: "valid",
+    authorities: ["OPS-001", "SCI-004", "ENC-001"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-098");
+      const cid = "contradiction:ref-ops-098";
+      const claims = ["claim:ref-ops-098-a", "claim:ref-ops-098-b"] as const;
+      const evid = "evidence:ref-ops-098";
+      await ops.registerContradictionUnit(
+        contradictionInput(cid, claims, { evidence_refs: [evid] }),
+      );
+      const r = await ops.transitionContradictionRecordState({
+        identity: cid,
+        revision_id: "rev:resolved-1",
+        expected_head_revision_id: "rev:initial",
+        transition: {
+          to: "resolved_by_scope_split",
+          authority_agent: OPS_HUMAN,
+          reason: "REF-OPS-098",
+          decision_ref: "decision:ref-ops-098",
+          at: OPS_AT,
+          event_id: "crte:ref-ops-098",
+          resolution_note: "decoded note",
+        },
+      });
+      const decoded = contradictionFromContradictionUnitPayload(r.entity.payload);
+      check.equal("id", decoded.contradiction_id, cid);
+      check.equal("involves[0]", decoded.involved_claims[0], claims[0]);
+      check.equal("involves[1]", decoded.involved_claims[1], claims[1]);
+      check.equal("evidence", decoded.evidence_refs?.[0], evid);
+      check.equal("note", decoded.resolution_note, "decoded note");
+      check.equal("CRTE", decoded.record_transition_log?.length, 1);
+      const reassembled = await new CanonicalEncoder().assemble(decoded);
+      check.equal(
+        "unit_kind",
+        reassembled.envelope.unit_kind,
+        "ContradictionUnit",
+      );
+      check.equal(
+        "involves role",
+        reassembled.envelope.references.filter((x) => x.role === "involves")
+          .length,
+        2,
+      );
+    },
+  },
+  {
+    fixture_id: "REF-OPS-099",
+    title: "Contradiction membership caller-explicit; create does not register",
+    scenario: "valid",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-099");
+      const cid = "contradiction:ref-ops-099";
+      const session = ops.openSession({
+        research_session_id: "research:session:ref-ops-099",
+      });
+      await ops.registerContradictionUnit(
+        contradictionInput(cid, ["claim:ref-ops-099-a", "claim:ref-ops-099-b"]),
+      );
+      check.equal("no auto member", session.members().length, 0);
+      ops.registerMember(session, {
+        entity_kind: "CanonicalUnit",
+        unit_kind: "ContradictionUnit",
+        identity: cid,
+      });
+      check.equal("after register", session.members().length, 1);
+      await ops.transitionContradictionRecordState({
+        identity: cid,
+        revision_id: "rev:archived-1",
+        expected_head_revision_id: "rev:initial",
+        transition: {
+          to: "unresolved_archived",
+          authority_agent: OPS_HUMAN,
+          reason: "REF-OPS-099",
+          decision_ref: "decision:ref-ops-099",
+          at: OPS_AT,
+          event_id: "crte:ref-ops-099",
+        },
+      });
+      check.equal("membership unchanged", session.members().length, 1);
+    },
+  },
+  {
+    fixture_id: "REF-OPS-100",
+    title: "ResearchSnapshot and WorkspaceSnapshot include Contradiction Model C rows",
+    scenario: "valid",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-100");
+      const cid = "contradiction:ref-ops-100";
+      const session = ops.openSession({
+        research_session_id: "research:session:ref-ops-100",
+      });
+      const ws = ops.openWorkspace({
+        research_workspace_id: "workspace:ref-ops-100",
+      });
+      await ops.registerContradictionUnit(
+        contradictionInput(cid, ["claim:ref-ops-100-a", "claim:ref-ops-100-b"]),
+      );
+      ops.registerMember(session, {
+        entity_kind: "CanonicalUnit",
+        unit_kind: "ContradictionUnit",
+        identity: cid,
+      });
+      ops.registerWorkspaceMember(ws, {
+        entity_kind: "CanonicalUnit",
+        unit_kind: "ContradictionUnit",
+        identity: cid,
+      });
+      await ops.transitionContradictionRecordState({
+        identity: cid,
+        revision_id: "rev:archived-1",
+        expected_head_revision_id: "rev:initial",
+        transition: {
+          to: "unresolved_archived",
+          authority_agent: OPS_HUMAN,
+          reason: "REF-OPS-100",
+          decision_ref: "decision:ref-ops-100",
+          at: OPS_AT,
+          event_id: "crte:ref-ops-100",
+        },
+      });
+      const snap = await ops.snapshotView(session);
+      check.equal(
+        "session id shape",
+        snap.research_session_id,
+        "research:session:ref-ops-100",
+      );
+      const keys = snap.persistence_snapshot.entities.map((e) => e.storage_key);
+      check.ok(
+        "initial",
+        keys.some((k) => k.includes("ContradictionUnit") && k.includes(":rev:initial")),
+      );
+      check.ok(
+        "successor",
+        keys.some((k) => k.includes(":rev:archived-1")),
+      );
+      check.ok(
+        "head",
+        keys.some((k) =>
+          k.includes("persist:RevisionHead:ContradictionUnit:"),
+        ),
+      );
+      const wsnap = await ops.workspaceSnapshotView(ws);
+      check.equal("workspace id", wsnap.research_workspace_id, "workspace:ref-ops-100");
+      check.equal("member_refs", wsnap.member_refs.length, 1);
+    },
+  },
+  {
+    fixture_id: "REF-OPS-101",
+    title: "Optional ops.contradiction_record_state_revision with caller event_id",
+    scenario: "valid",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-101");
+      const cid = "contradiction:ref-ops-101";
+      await ops.registerContradictionUnit(
+        contradictionInput(cid, ["claim:ref-ops-101-a", "claim:ref-ops-101-b"]),
+      );
+      await ops.transitionContradictionRecordState({
+        identity: cid,
+        revision_id: "rev:archived-1",
+        expected_head_revision_id: "rev:initial",
+        append_event: true,
+        transition: {
+          to: "unresolved_archived",
+          authority_agent: OPS_HUMAN,
+          reason: "REF-OPS-101",
+          decision_ref: "decision:ref-ops-101",
+          at: OPS_AT,
+          event_id: "crte:ref-ops-101",
+        },
+      });
+      const events = await ops.getEvents(cid);
+      const hit = events.find(
+        (e) => e.event_type === "ops.contradiction_record_state_revision",
+      );
+      check.ok("event present", hit !== undefined);
+      check.equal("event_id", hit!.event_id, "ops:crte:ref-ops-101");
+      check.equal(
+        "to_record_state",
+        (hit!.payload as { to_record_state: string }).to_record_state,
+        "unresolved_archived",
+      );
+      const none = await (async () => {
+        const ops2 = makeOps("persist-sess:ref-ops-101-b");
+        await ops2.registerContradictionUnit(
+          contradictionInput("contradiction:ref-ops-101-b", [
+            "claim:ref-ops-101-b-a",
+            "claim:ref-ops-101-b-b",
+          ]),
+        );
+        await ops2.transitionContradictionRecordState({
+          identity: "contradiction:ref-ops-101-b",
+          revision_id: "rev:archived-1",
+          expected_head_revision_id: "rev:initial",
+          transition: {
+            to: "unresolved_archived",
+            authority_agent: OPS_HUMAN,
+            reason: "default off",
+            decision_ref: "decision:ref-ops-101-b",
+            at: OPS_AT,
+            event_id: "crte:ref-ops-101-b",
+          },
+        });
+        return ops2.getEvents("contradiction:ref-ops-101-b");
+      })();
+      check.equal(
+        "default no ops event",
+        none.filter(
+          (e) => e.event_type === "ops.contradiction_record_state_revision",
+        ).length,
+        0,
+      );
+    },
+  },
+  {
+    fixture_id: "REF-OPS-102",
+    title: "Contradiction OPS does not create Persistence.Relationship entities",
+    scenario: "valid",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-102");
+      const cid = "contradiction:ref-ops-102";
+      await ops.registerContradictionUnit(
+        contradictionInput(
+          cid,
+          ["claim:ref-ops-102-a", "claim:ref-ops-102-b"],
+          { evidence_refs: ["evidence:ref-ops-102"] },
+        ),
+      );
+      await ops.transitionContradictionRecordState({
+        identity: cid,
+        revision_id: "rev:archived-1",
+        expected_head_revision_id: "rev:initial",
+        transition: {
+          to: "unresolved_archived",
+          authority_agent: OPS_HUMAN,
+          reason: "REF-OPS-102",
+          decision_ref: "decision:ref-ops-102",
+          at: OPS_AT,
+          event_id: "crte:ref-ops-102",
+        },
+      });
+      const listed = await ops.repository.list({
+        filter: { entity_kind: "Relationship" },
+      });
+      check.equal("no Relationship entities", listed.total, 0);
+    },
+  },
+  {
+    fixture_id: "REF-OPS-103",
+    title: "Deterministic Contradiction export double-run",
+    scenario: "valid",
+    authorities: ["OPS-001", "SER-JSON-001"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      async function run() {
+        const ops = makeOps("persist-sess:ref-ops-103");
+        const cid = "contradiction:ref-ops-103";
+        await ops.registerContradictionUnit(
+          contradictionInput(cid, [
+            "claim:ref-ops-103-a",
+            "claim:ref-ops-103-b",
+          ]),
+        );
+        await ops.transitionContradictionRecordState({
+          identity: cid,
+          revision_id: "rev:archived-1",
+          expected_head_revision_id: "rev:initial",
+          transition: {
+            to: "unresolved_archived",
+            authority_agent: OPS_HUMAN,
+            reason: "REF-OPS-103",
+            decision_ref: "decision:ref-ops-103",
+            at: OPS_AT,
+            event_id: "crte:ref-ops-103",
+          },
+        });
+        return ops.exportContradictionUnit(cid);
+      }
+      const a = await run();
+      const b = await run();
+      check.equal("deterministic export", a, b);
+    },
+  },
+  {
+    fixture_id: "REF-OPS-104",
+    title: "Missing Contradiction transition propagates NOT_FOUND",
+    scenario: "invalid",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "failure", failure_code: "NOT_FOUND" },
+    async execute() {
+      const ops = makeOps("persist-sess:ref-ops-104");
+      await ops.transitionContradictionRecordState({
+        identity: "contradiction:ref-ops-104-missing",
+        revision_id: "rev:archived-1",
+        expected_head_revision_id: "rev:initial",
+        transition: {
+          to: "unresolved_archived",
+          authority_agent: OPS_HUMAN,
+          reason: "missing",
+          decision_ref: "decision:ref-ops-104",
+          at: OPS_AT,
+          event_id: "crte:ref-ops-104",
+        },
+      });
+    },
+  },
+  {
+    fixture_id: "REF-OPS-105",
+    title: "Missing decision_ref leaving open rejects F_TRANSITION",
+    scenario: "invalid",
+    authorities: ["OPS-001", "SCI-004"],
+    expectation: { outcome: "failure", failure_code: "F_TRANSITION" },
+    async execute() {
+      const ops = makeOps("persist-sess:ref-ops-105");
+      const cid = "contradiction:ref-ops-105";
+      await ops.registerContradictionUnit(
+        contradictionInput(cid, ["claim:ref-ops-105-a", "claim:ref-ops-105-b"]),
+      );
+      await ops.transitionContradictionRecordState({
+        identity: cid,
+        revision_id: "rev:no-decision",
+        expected_head_revision_id: "rev:initial",
+        transition: {
+          to: "unresolved_archived",
+          authority_agent: OPS_HUMAN,
+          reason: "REF-OPS-105",
+          at: OPS_AT,
+          event_id: "crte:ref-ops-105",
+        },
+      });
     },
   },
 ]);

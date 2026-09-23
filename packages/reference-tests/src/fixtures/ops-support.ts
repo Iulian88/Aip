@@ -2,7 +2,7 @@
  * REF-OPS fixture support — deterministic OPS + Persistence harness.
  * Exercises OPS public APIs only; no fabricated scientific evidence.
  */
-import type { CreateEvidenceInput } from "@sciros/core";
+import type { CreateContradictionInput, CreateEvidenceInput } from "@sciros/core";
 import {
   createResearchOperations,
   type ResearchOperations,
@@ -63,6 +63,30 @@ export function evidenceInput(
         item_state: "active",
       },
     ],
+    ...overrides,
+  };
+}
+
+/** Deterministic Contradiction createOpen input for REF-OPS Contradiction fixtures. */
+export function contradictionInput(
+  contradictionId: string,
+  involvedClaims: readonly string[],
+  overrides: Partial<CreateContradictionInput> = {},
+): CreateContradictionInput {
+  return {
+    contradiction_id: contradictionId,
+    summary: "REF-OPS orchestration contradiction",
+    involved_claims: involvedClaims,
+    overlap_statement: "overlapping claim scope in REF-OPS cohort",
+    incompatibility_statement: "claims cannot both hold under stated bounds",
+    provenance: {
+      completeness: "complete",
+      recorded_at: OPS_AT,
+      custody_agent: OPS_HUMAN,
+      method_summary: "REF-OPS contradiction adjudication",
+    },
+    created_by: OPS_HUMAN,
+    created_at: OPS_AT,
     ...overrides,
   };
 }

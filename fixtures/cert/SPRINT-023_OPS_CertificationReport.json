@@ -1,0 +1,94 @@
+{
+  "authority": "CERT-001",
+  "certificate": {
+    "authorities_compliant": 13,
+    "authorities_required": 13,
+    "authority": "CERT-001",
+    "authority_coverage": [
+      "ADR-0006",
+      "ENC-001",
+      "OPS-001",
+      "RPR-001",
+      "SCI-000",
+      "SCI-001",
+      "SCI-002",
+      "SCI-003",
+      "SCI-004",
+      "SCI-005",
+      "SCI-006",
+      "SER-001",
+      "SER-JSON-001"
+    ],
+    "certificate_id": "cert:sess-sprint-023-formal-ops:sciros-full-reference-corpus:certified",
+    "conformance_overall": "COMPLIANT",
+    "conformance_suite": "SciROS Full Reference Corpus",
+    "decision": "CERTIFIED",
+    "dimensions_compliant": 7,
+    "dimensions_evaluated": 7,
+    "evidence_summary": "suite=SciROS Full Reference Corpus; profile=CONF-001@1.1.0-OPS; conformance=COMPLIANT; fixtures=149; pass=149; dimensions=7/7; source=REF-TEST-001:ReferenceReport",
+    "scope": [
+      "SCI-000",
+      "SCI-001",
+      "SCI-002",
+      "SCI-003",
+      "SCI-004",
+      "SCI-005",
+      "SCI-006",
+      "ENC-001",
+      "SER-001",
+      "SER-JSON-001",
+      "RPR-001",
+      "ADR-0006",
+      "CONF-001",
+      "OPS-001"
+    ],
+    "session_authority": "CERT-002"
+  },
+  "criteria": [
+    {
+      "criterion_id": "authority_coverage",
+      "notes": [],
+      "passed": true
+    },
+    {
+      "criterion_id": "dimension_coverage",
+      "notes": [],
+      "passed": true
+    },
+    {
+      "criterion_id": "evidence_completeness",
+      "notes": [],
+      "passed": true
+    },
+    {
+      "criterion_id": "determinism",
+      "notes": [],
+      "passed": true
+    },
+    {
+      "criterion_id": "report_integrity",
+      "notes": [],
+      "passed": true
+    }
+  ],
+  "decision": "CERTIFIED",
+  "observations": [
+    {
+      "criterion_id": "overall",
+      "detail": "Conformance overall COMPLIANT",
+      "severity": "info"
+    }
+  ],
+  "session_authority": "CERT-002",
+  "session_id": "sess-sprint-023-formal-ops",
+  "summary": {
+    "authorities_covered": 13,
+    "authorities_in_scope": 14,
+    "blocking_observations": 0,
+    "criteria_evaluated": 5,
+    "criteria_failed": 0,
+    "criteria_passed": 5,
+    "decision": "CERTIFIED",
+    "observations": 1
+  }
+}

@@ -55,6 +55,43 @@ OPS → REF-OPS → ReferenceRunner → ReferenceReport
     → CertificationEngine → Certificate
 ```
 
+## Sprint 023 — Contradiction OPS Under Model C
+
+### OPS
+
+- `registerContradictionUnit` → Core `ContradictionFactory.createOpen` → ENC ContradictionUnit → `Persistence.create` (`rev:initial`) → `ensureInitialHead`
+- `transitionContradictionRecordState` → decode → Core `ContradictionTransitionService.transition` → ENC → create successor → ContradictionUnit RevisionHead CAS → optional `appendEvent`
+- New OPS-local `contradictionFromContradictionUnitPayload` (ENC lossy for `ai_assisted` / `human_sponsor` — OQ-023-002 deferred)
+- Event type: `ops.contradiction_record_state_revision` (optional; non-authoritative; caller `crte:` `event_id` required on certified paths)
+- Create-once does **not** emit events or auto-register membership (Claim/Evidence parity)
+- Does **not** use `Persistence.Relationship` as scientific storage; does **not** reverse-sync `Claim.contested_by`
+
+### Determinism
+
+- Caller-supplied `revision_id` and CRTE `event_id` (Core may `randomUUID` if CRTE id omitted — callers must supply)
+- Double-run exports match
+
+### Concurrency / partial-write
+
+- Same Model C honesty: create may succeed while CAS fails → orphan revision; head unchanged
+- Stale CAS for Contradiction uses mismatched `expected_head_revision_id` while still `open` (terminals have no second legal Core edge)
+
+### Tests
+
+- `scripts/test-023-contradiction-ops.mjs` (7 assertion tests)
+- `scripts/smoke-023-contradiction-ops.mjs` → `SMOKE_023_PASS` only (does not overwrite 019–022)
+- Additive REF-OPS-077…105
+- Regression: Sprint 016–022 tests green; SCI 44; OPS 105; FULL 149
+
+### Limitations / non-goals
+
+- No ENC AI-marker addition (OQ-023-002)
+- No Claim `qualified_by` / `verified_via` OPS (OQ-023-005)
+- No material Contradiction content OPS (OQ-023-011)
+- No NR / Verification OPS; no generic lifecycle engine
+- No DB / API / UI / AI / KG / DocumentArtifact
+- ResearchSession / ResearchWorkspace remain memory-only
+
 ## Sprint 022 — Grade OPS (Option A)
 
 ### OPS
