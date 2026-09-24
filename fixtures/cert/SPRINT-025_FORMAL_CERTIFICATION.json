@@ -1,0 +1,121 @@
+{
+  "sprint": 25,
+  "subject": "Verification OPS Under Model C",
+  "scope": "Verification create-once OPS via VerificationFactory.createPlanned and post-persist Record State leave-planned OPS via VerificationTransitionService.transition (planned → passed|failed|inconclusive) under Model C; OPS-local decode; no Persistence.Relationship scientific graph; no Claim.verified_via reverse sync; no ENC AI-marker changes; no VersionService material OPS; no generic lifecycle",
+  "spec": "SPEC-025 v0.1.0-DRAFT (audited)",
+  "architecture": {
+    "model": "Model C",
+    "model_description": "Stable Scientific Identity + Immutable Revisions + RevisionHead + CAS head advancement",
+    "unit_kind": "VerificationUnit",
+    "revision_key": "persist:CanonicalUnit:{unit_kind}:{scientific_identity}:{revision_id}",
+    "initial_revision": "rev:initial",
+    "subsequent_revision": "caller-supplied rev:…",
+    "lineage": "PersistenceEntity.predecessor_revision_id = expected_head_revision_id",
+    "revision_head_key": "persist:RevisionHead:VerificationUnit:{identity}",
+    "head_advancement": "advanceHead (replace + expected_version CAS)",
+    "scientific_authority": "Scientific Core VerificationFactory.createPlanned + VerificationTransitionService.transition (SCI-006)",
+    "ops_api": [
+      "registerVerificationUnit",
+      "transitionVerificationRecordState"
+    ],
+    "decoder": "verificationFromVerificationUnitPayload",
+    "encoder": "CanonicalEncoder.assemble (VerificationUnit)",
+    "operational_event": "ops.verification_record_state_revision (optional; operational only)",
+    "chain": "OPS → REF-OPS → ReferenceRunner → ReferenceReport → ConformanceEngine(profile) → ConformanceReport(profile_id) → CertificationEngine → Certificate",
+    "conformance_engines": 1,
+    "certification_engines": 1
+  },
+  "audit": {
+    "architecture_audit": "ARCHITECTURE-AUDIT-025 / FINAL-ARCHITECTURE-RE-AUDIT-025 APPROVED WITH OBSERVATIONS",
+    "code_audit": "CODE-AUDIT-025 APPROVED WITH OBSERVATIONS",
+    "required_patches": 0,
+    "blockers": 0
+  },
+  "execution": {
+    "status": "COMPLETE",
+    "create_path": "VerificationFactory.createPlanned → CanonicalEncoder.assemble → entityFromCanonicalUnit → Persistence.create → ensureInitialHead",
+    "transition_path": "getVerificationUnit → verificationFromVerificationUnitPayload → VerificationTransitionService.transition → CanonicalEncoder.assemble → Persistence.create → advanceHead CAS → optional appendEvent"
+  },
+  "corpora": {
+    "REF_CORPUS_SCI": 44,
+    "REF_CORPUS_OPS": 161,
+    "REF_CORPUS_FULL": 205,
+    "sci_pass": 44,
+    "ops_pass": 161,
+    "full_pass": 205,
+    "verification_ops_fixtures": "REF-OPS-134…REF-OPS-161"
+  },
+  "sci": {
+    "profile_id": "CONF-001@1.0.0",
+    "corpus": "REF-CORPUS-SCI",
+    "conformance_overall": "COMPLIANT",
+    "certification_decision": "CERTIFIED",
+    "certificate_id": "cert:sess-sprint-025-formal-sci:sciros-reference-test-suite:certified",
+    "scope": [
+      "SCI-000",
+      "SCI-001",
+      "SCI-002",
+      "SCI-003",
+      "SCI-004",
+      "SCI-005",
+      "SCI-006",
+      "ENC-001",
+      "SER-001",
+      "SER-JSON-001",
+      "RPR-001",
+      "ADR-0006",
+      "CONF-001"
+    ]
+  },
+  "ops": {
+    "profile_id": "CONF-001@1.1.0-OPS",
+    "corpus": "REF-CORPUS-FULL",
+    "ops_authoring_corpus": "REF-CORPUS-OPS",
+    "conformance_overall": "COMPLIANT",
+    "certification_decision": "CERTIFIED",
+    "certificate_id": "cert:sess-sprint-025-formal-ops:sciros-full-reference-corpus:certified",
+    "scope": [
+      "SCI-000",
+      "SCI-001",
+      "SCI-002",
+      "SCI-003",
+      "SCI-004",
+      "SCI-005",
+      "SCI-006",
+      "ENC-001",
+      "SER-001",
+      "SER-JSON-001",
+      "RPR-001",
+      "ADR-0006",
+      "CONF-001",
+      "OPS-001"
+    ]
+  },
+  "regression": {
+    "TEST-016": "10/10 PASS",
+    "TEST-017": "12/12 PASS",
+    "TEST-018": "10/10 PASS",
+    "TEST-019": "10/10 PASS",
+    "TEST-020": "22/22 PASS",
+    "TEST-021": "15/15 PASS",
+    "TEST-022": "7/7 PASS",
+    "TEST-023": "7/7 PASS",
+    "TEST-024": "7/7 PASS",
+    "TEST-025": "7/7 PASS",
+    "smoke": "smoke-024 / smoke-025 PASS",
+    "typecheck": "PASS",
+    "lint": "PASS",
+    "build": "PASS",
+    "determinism": "PASS"
+  },
+  "observations_non_blocking": [
+    "O-025-CA-01: Decode lossy for ai_assisted/human_sponsor (OQ-025-001 deferred)",
+    "O-025-CA-02: REF-OPS-144 F7 via failure expectation; head-unchanged also in T025-003",
+    "O-025-CA-03: Ops event ID fallback deterministic when VTE event_id omitted; certified paths supply vte:",
+    "OQ-025-001 / OQ-025-007 / VersionService OPS remain deferred",
+    "O-CERT-025-01: smoke-024 re-run for PASS verification; SMOKE_024_PASS restored to HEAD content (historical Sprint 024 marker unchanged)"
+  ],
+  "formal_status": "CERTIFIED",
+  "closure": "PENDING_GIT_CLOSURE",
+  "note": "Engine CertificationDecision CERTIFIED for SCI and OPS; non-blocking observations recorded separately. Sprint not closed until final Git commit+push."
+}

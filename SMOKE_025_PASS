@@ -1,0 +1,7 @@
+PASS marker
+PASS verification-ops
+PASS determinism
+PASS event
+PASS relationship-boundary
+PASS corpus SCI=44 OPS=161 FULL=205
+PASS conformance

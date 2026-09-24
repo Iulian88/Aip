@@ -1,25 +1,25 @@
 # SciROS Reference Implementation
 
-**Sprint:** EXEC-SPRINT-024 · Negative Result OPS  
-**Status:** **IMPLEMENTATION COMPLETE** (pending CODE-AUDIT-024; not formally certified by this EXEC)
+**Sprint:** EXEC-SPRINT-025 · Verification OPS  
+**Status:** **IMPLEMENTATION COMPLETE** (pending CODE-AUDIT-025; not formally certified by this EXEC)
 
 | Field | Value |
 |-------|--------|
 | Implementation | COMPLETE |
-| Architecture | SPEC-024 · IMPLEMENTATION-DECISION-024 · FINAL-ARCHITECTURE-RE-AUDIT-024 — EXEC AUTHORIZED (exact scope) |
+| Architecture | SPEC-025 · IMPLEMENTATION-DECISION-025 · FINAL-ARCHITECTURE-RE-AUDIT-025 — EXEC AUTHORIZED (exact scope) |
 | SCI profile | `CONF-001@1.0.0` |
 | OPS profile | `CONF-001@1.1.0-OPS` |
-| Corpora (live) | SCI 44/44 · OPS 133/133 · FULL 177/177 |
-| Prior certified baseline | Sprint 023 @ `207365f` — FORMALLY CERTIFIED AND CLOSED |
+| Corpora (live) | SCI 44/44 · OPS 161/161 · FULL 205/205 |
+| Prior certified baseline | Sprint 024 @ `47efca4` — FORMALLY CERTIFIED AND CLOSED |
 
 | Field | Value |
 |-------|--------|
-| SPEC | SPEC-024 |
-| Slice | Negative Result create-once + Record State post-persist OPS under Model C |
-| Representation | NegativeResultUnit |
-| Core | `NegativeResultFactory.createRegistered` · `NegativeResultTransitionService.transition` |
+| SPEC | SPEC-025 |
+| Slice | Verification create-once + Record State leave-planned post-persist OPS under Model C |
+| Representation | VerificationUnit |
+| Core | `VerificationFactory.createPlanned` · `VerificationTransitionService.transition` |
 | Revision model | Certified Model C (unchanged) |
-| Head | `persist:RevisionHead:NegativeResultUnit:{identity}` · CAS via `advanceHead` |
+| Head | `persist:RevisionHead:VerificationUnit:{identity}` · CAS via `advanceHead` |
 
 ## Commands
 
@@ -47,6 +47,8 @@ node scripts/test-023-contradiction-ops.mjs
 node scripts/smoke-023-contradiction-ops.mjs
 node scripts/test-024-negative-result-ops.mjs
 node scripts/smoke-024-negative-result-ops.mjs
+node scripts/test-025-verification-ops.mjs
+node scripts/smoke-025-verification-ops.mjs
 ```
 
 ## Evidence chain (unchanged)
@@ -56,6 +58,45 @@ OPS → REF-OPS → ReferenceRunner → ReferenceReport
     → ConformanceEngine(profile) → ConformanceReport(profile_id)
     → CertificationEngine → Certificate
 ```
+
+## Sprint 025 — Verification OPS Under Model C
+
+### OPS
+
+- `registerVerificationUnit(input, options?)` → Core `VerificationFactory.createPlanned` → ENC VerificationUnit → `Persistence.create` (`rev:initial`) → `ensureInitialHead`
+- `transitionVerificationRecordState` → decode → Core `VerificationTransitionService.transition` (leave-planned → `passed` \| `failed` \| `inconclusive`) → ENC → create successor → VerificationUnit RevisionHead CAS → optional `appendEvent`
+- New OPS-local `verificationFromVerificationUnitPayload` (ENC lossy for `ai_assisted` / `human_sponsor` — OQ-025-001 deferred; `artifact_ref` content-only — O-025-04)
+- Event type: `ops.verification_record_state_revision` (optional; non-authoritative; caller `vte:` `event_id` required on certified paths)
+- Create-once does **not** emit events or auto-register membership
+- Does **not** use `Persistence.Relationship` as scientific storage; does **not** reverse-sync `Claim.verified_via`
+
+### Determinism
+
+- Caller-supplied `revision_id` and VTE `event_id` (Core may `randomUUID` if VTE id omitted — callers must supply)
+- Double-run exports match
+
+### Concurrency / partial-write
+
+- Same Model C honesty: create may succeed while CAS fails → orphan revision; head unchanged
+- Stale CAS for Verification uses mismatched `expected_head_revision_id` while still `planned` (terminals have no second legal Core leave-planned edge)
+
+### Tests
+
+- `scripts/test-025-verification-ops.mjs` (7 assertion tests)
+- `scripts/smoke-025-verification-ops.mjs` → `SMOKE_025_PASS` only (does not overwrite 019–024)
+- Additive REF-OPS-134…161
+- Regression: Sprint 016–024 tests green; SCI 44; OPS 161; FULL 205
+
+### Limitations / non-goals
+
+- No ENC AI-marker addition (OQ-025-001)
+- No Claim Standing `verified_via` post-create reverse sync (OQ-025-007)
+- No material Verification content OPS / VersionService wiring (OQ-025-004)
+- No pre-persist leave-planned on create (OQ-025-005)
+- No generic lifecycle engine; no DocumentArtifact OPS
+- No DB / API / UI / AI / KG
+- ResearchSession / ResearchWorkspace remain memory-only
+- Formal certification is a later gate (CODE-AUDIT-025 → CERT)
 
 ## Sprint 024 — Negative Result OPS Under Model C
 

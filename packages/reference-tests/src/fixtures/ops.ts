@@ -9,6 +9,7 @@ import {
   claimFromClaimUnitPayload,
   contradictionFromContradictionUnitPayload,
   negativeResultFromNegativeResultUnitPayload,
+  verificationFromVerificationUnitPayload,
 } from "@sciros/reference-app";
 import {
   ClaimTransitionService,
@@ -26,6 +27,8 @@ import {
   makeOps,
   negativeResultInput,
   negativeResultRegistration,
+  verificationInput,
+  verificationLeavePlanned,
   OPS_AT,
   OPS_HUMAN,
 } from "./ops-support.js";
@@ -4131,6 +4134,659 @@ export const opsFixtures: readonly ReferenceFixture[] = Object.freeze([
           event_id: "nrte:ref-ops-133",
           withdrawal_reason: "x",
         },
+      });
+    },
+  },
+  {
+    fixture_id: "REF-OPS-134",
+    title: "Verification createPlanned → VerificationUnit rev:initial + head",
+    scenario: "valid",
+    authorities: ["OPS-001", "SCI-006", "ENC-001"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-134");
+      const vid = "verification:ref-ops-134";
+      const claim = "claim:ref-ops-134";
+      const r = await ops.registerVerificationUnit(
+        verificationInput(vid, { claim_refs: [claim] }),
+      );
+      check.equal("record_state", r.verification.record_state, "planned");
+      check.equal("outcome", r.verification.verification_outcome, "pending");
+      check.equal("VTE count", r.verification.record_transition_log?.length ?? 0, 0);
+      check.equal("unit_kind", r.unit.envelope.unit_kind, "VerificationUnit");
+      check.equal("intact", r.unit.intact, true);
+      check.equal("revision", r.entity.revision_id, "rev:initial");
+      const claims = r.unit.envelope.references.filter(
+        (x) => x.role === "verifies_claim",
+      );
+      check.equal("claim_refs", claims[0]?.identity, claim);
+      const head = await ops.getVerificationHead(vid);
+      check.equal("head", head.content_version, "rev:initial");
+    },
+  },
+  {
+    fixture_id: "REF-OPS-135",
+    title: "ADM-T1 failure without claim/evidence/artifact rejects F6",
+    scenario: "invalid",
+    authorities: ["OPS-001", "SCI-006"],
+    expectation: { outcome: "failure", failure_code: "F6" },
+    async execute() {
+      const ops = makeOps("persist-sess:ref-ops-135");
+      const { claim_refs: _omit, ...noTargets } = verificationInput(
+        "verification:ref-ops-135",
+      );
+      await ops.registerVerificationUnit(noTargets);
+    },
+  },
+  {
+    fixture_id: "REF-OPS-136",
+    title: "Bad verification_id rejects Core F1",
+    scenario: "invalid",
+    authorities: ["OPS-001", "SCI-006"],
+    expectation: { outcome: "failure", failure_code: "F1" },
+    async execute() {
+      const ops = makeOps("persist-sess:ref-ops-136");
+      await ops.registerVerificationUnit(
+        verificationInput("not-a-verification-id"),
+      );
+    },
+  },
+  {
+    fixture_id: "REF-OPS-137",
+    title: "Empty protocol_ref rejects Core F2",
+    scenario: "invalid",
+    authorities: ["OPS-001", "SCI-006"],
+    expectation: { outcome: "failure", failure_code: "F2" },
+    async execute() {
+      const ops = makeOps("persist-sess:ref-ops-137");
+      await ops.registerVerificationUnit(
+        verificationInput("verification:ref-ops-137", { protocol_ref: "  " }),
+      );
+    },
+  },
+  {
+    fixture_id: "REF-OPS-138",
+    title: "Invalid verification_method rejects Core F3",
+    scenario: "invalid",
+    authorities: ["OPS-001", "SCI-006"],
+    expectation: { outcome: "failure", failure_code: "F3" },
+    async execute() {
+      const ops = makeOps("persist-sess:ref-ops-138");
+      await ops.registerVerificationUnit(
+        verificationInput("verification:ref-ops-138", {
+          verification_method: "not-a-method" as "reproduction",
+        }),
+      );
+    },
+  },
+  {
+    fixture_id: "REF-OPS-139",
+    title: "Duplicate Verification create rejects ALREADY_EXISTS",
+    scenario: "invalid",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "failure", failure_code: "ALREADY_EXISTS" },
+    async execute() {
+      const ops = makeOps("persist-sess:ref-ops-139");
+      const vid = "verification:ref-ops-139";
+      await ops.registerVerificationUnit(verificationInput(vid));
+      await ops.registerVerificationUnit(verificationInput(vid));
+    },
+  },
+  {
+    fixture_id: "REF-OPS-140",
+    title: "registerVerificationUnit non-initial revision_id → OpsError",
+    scenario: "invalid",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "failure", failure_code: "INVALID_COMMAND_STATE" },
+    async execute() {
+      const ops = makeOps("persist-sess:ref-ops-140");
+      await ops.registerVerificationUnit(
+        verificationInput("verification:ref-ops-140"),
+        { revision_id: "rev:not-initial" },
+      );
+    },
+  },
+  {
+    fixture_id: "REF-OPS-141",
+    title: "Leave-planned Human → passed + successor revision + head",
+    scenario: "valid",
+    authorities: ["OPS-001", "SCI-006", "ENC-001"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-141");
+      const vid = "verification:ref-ops-141";
+      await ops.registerVerificationUnit(verificationInput(vid));
+      const r = await ops.transitionVerificationRecordState({
+        identity: vid,
+        revision_id: "rev:passed-1",
+        expected_head_revision_id: "rev:initial",
+        transition: verificationLeavePlanned("passed", "vte:ref-ops-141"),
+      });
+      check.equal("record_state", r.verification.record_state, "passed");
+      check.equal("outcome", r.verification.verification_outcome, "passed");
+      check.equal("head", r.head_revision_id, "rev:passed-1");
+      check.equal("predecessor", r.entity.predecessor_revision_id, "rev:initial");
+      check.equal("VTE count", r.verification.record_transition_log?.length ?? 0, 1);
+    },
+  },
+  {
+    fixture_id: "REF-OPS-142",
+    title: "Leave-planned Human → failed with outcome coupling",
+    scenario: "valid",
+    authorities: ["OPS-001", "SCI-006"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-142");
+      const vid = "verification:ref-ops-142";
+      await ops.registerVerificationUnit(verificationInput(vid));
+      const r = await ops.transitionVerificationRecordState({
+        identity: vid,
+        revision_id: "rev:failed-1",
+        expected_head_revision_id: "rev:initial",
+        transition: verificationLeavePlanned("failed", "vte:ref-ops-142"),
+      });
+      check.equal("record_state", r.verification.record_state, "failed");
+      check.equal("outcome", r.verification.verification_outcome, "failed");
+    },
+  },
+  {
+    fixture_id: "REF-OPS-143",
+    title: "Leave-planned Human → inconclusive with outcome coupling",
+    scenario: "valid",
+    authorities: ["OPS-001", "SCI-006"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-143");
+      const vid = "verification:ref-ops-143";
+      await ops.registerVerificationUnit(verificationInput(vid));
+      const r = await ops.transitionVerificationRecordState({
+        identity: vid,
+        revision_id: "rev:inconclusive-1",
+        expected_head_revision_id: "rev:initial",
+        transition: verificationLeavePlanned("inconclusive", "vte:ref-ops-143"),
+      });
+      check.equal("record_state", r.verification.record_state, "inconclusive");
+      check.equal("outcome", r.verification.verification_outcome, "inconclusive");
+    },
+  },
+  {
+    fixture_id: "REF-OPS-144",
+    title: "AI leave-planned rejects Core F7; head unchanged",
+    scenario: "invalid",
+    authorities: ["OPS-001", "SCI-006"],
+    expectation: { outcome: "failure", failure_code: "F7" },
+    async execute() {
+      const ops = makeOps("persist-sess:ref-ops-144");
+      const vid = "verification:ref-ops-144";
+      await ops.registerVerificationUnit(verificationInput(vid));
+      await ops.transitionVerificationRecordState({
+        identity: vid,
+        revision_id: "rev:passed-1",
+        expected_head_revision_id: "rev:initial",
+        transition: verificationLeavePlanned("passed", "vte:ref-ops-144", {
+          authority_agent: "ai:ref-ops-144",
+        }),
+      });
+    },
+  },
+  {
+    fixture_id: "REF-OPS-145",
+    title: "Missing decision_ref on leave-planned rejects F_TRANSITION",
+    scenario: "invalid",
+    authorities: ["OPS-001", "SCI-006"],
+    expectation: { outcome: "failure", failure_code: "F_TRANSITION" },
+    async execute() {
+      const ops = makeOps("persist-sess:ref-ops-145");
+      const vid = "verification:ref-ops-145";
+      await ops.registerVerificationUnit(verificationInput(vid));
+      await ops.transitionVerificationRecordState({
+        identity: vid,
+        revision_id: "rev:passed-1",
+        expected_head_revision_id: "rev:initial",
+        transition: verificationLeavePlanned("passed", "vte:ref-ops-145", {
+          decision_ref: "  ",
+        }),
+      });
+    },
+  },
+  {
+    fixture_id: "REF-OPS-146",
+    title: "Terminal passed re-transition rejects F_TRANSITION",
+    scenario: "invalid",
+    authorities: ["OPS-001", "SCI-006"],
+    expectation: { outcome: "failure", failure_code: "F_TRANSITION" },
+    async execute() {
+      const ops = makeOps("persist-sess:ref-ops-146");
+      const vid = "verification:ref-ops-146";
+      await ops.registerVerificationUnit(verificationInput(vid));
+      await ops.transitionVerificationRecordState({
+        identity: vid,
+        revision_id: "rev:passed-1",
+        expected_head_revision_id: "rev:initial",
+        transition: verificationLeavePlanned("passed", "vte:ref-ops-146-a"),
+      });
+      await ops.transitionVerificationRecordState({
+        identity: vid,
+        revision_id: "rev:passed-2",
+        expected_head_revision_id: "rev:passed-1",
+        transition: verificationLeavePlanned("failed", "vte:ref-ops-146-b"),
+      });
+    },
+  },
+  {
+    fixture_id: "REF-OPS-147",
+    title: "Stale head CAS while still planned rejects CONFLICT",
+    scenario: "invalid",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "failure", failure_code: "CONFLICT" },
+    async execute() {
+      const ops = makeOps("persist-sess:ref-ops-147");
+      const vid = "verification:ref-ops-147";
+      await ops.registerVerificationUnit(verificationInput(vid));
+      await ops.transitionVerificationRecordState({
+        identity: vid,
+        revision_id: "rev:stale",
+        expected_head_revision_id: "rev:not-current",
+        transition: verificationLeavePlanned("passed", "vte:ref-ops-147"),
+      });
+    },
+  },
+  {
+    fixture_id: "REF-OPS-148",
+    title: "Duplicate revision_id rejects ALREADY_EXISTS",
+    scenario: "invalid",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "failure", failure_code: "ALREADY_EXISTS" },
+    async execute() {
+      const ops = makeOps("persist-sess:ref-ops-148");
+      const vid = "verification:ref-ops-148";
+      const created = await ops.registerVerificationUnit(verificationInput(vid));
+      await ops.repository.create(
+        entityFromCanonicalUnit(created.unit, {
+          revision_id: "rev:dup",
+          predecessor_revision_id: "rev:initial",
+        }),
+      );
+      await ops.transitionVerificationRecordState({
+        identity: vid,
+        revision_id: "rev:dup",
+        expected_head_revision_id: "rev:initial",
+        transition: verificationLeavePlanned("passed", "vte:ref-ops-148"),
+      });
+    },
+  },
+  {
+    fixture_id: "REF-OPS-149",
+    title: "transition revision_id rev:initial → OpsError",
+    scenario: "invalid",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "failure", failure_code: "INVALID_COMMAND_STATE" },
+    async execute() {
+      const ops = makeOps("persist-sess:ref-ops-149");
+      const vid = "verification:ref-ops-149";
+      await ops.registerVerificationUnit(verificationInput(vid));
+      await ops.transitionVerificationRecordState({
+        identity: vid,
+        revision_id: "rev:initial",
+        expected_head_revision_id: "rev:initial",
+        transition: verificationLeavePlanned("passed", "vte:ref-ops-149"),
+      });
+    },
+  },
+  {
+    fixture_id: "REF-OPS-150",
+    title: "Immutability of rev:initial after leave-planned",
+    scenario: "valid",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-150");
+      const vid = "verification:ref-ops-150";
+      const created = await ops.registerVerificationUnit(verificationInput(vid));
+      await ops.transitionVerificationRecordState({
+        identity: vid,
+        revision_id: "rev:passed-1",
+        expected_head_revision_id: "rev:initial",
+        transition: verificationLeavePlanned("passed", "vte:ref-ops-150"),
+      });
+      const initial = await ops.getVerificationUnitRevision(vid, "rev:initial");
+      check.equal("initial_rev", initial.revision_id, "rev:initial");
+      const decoded = verificationFromVerificationUnitPayload(initial.payload);
+      check.equal("still_planned", decoded.record_state, "planned");
+      check.equal(
+        "payload_stable",
+        stableStringify(initial.payload),
+        stableStringify(created.entity.payload),
+      );
+    },
+  },
+  {
+    fixture_id: "REF-OPS-151",
+    title: "Lineage lists both revisions with predecessor chain",
+    scenario: "valid",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-151");
+      const vid = "verification:ref-ops-151";
+      await ops.registerVerificationUnit(verificationInput(vid));
+      await ops.transitionVerificationRecordState({
+        identity: vid,
+        revision_id: "rev:passed-1",
+        expected_head_revision_id: "rev:initial",
+        transition: verificationLeavePlanned("passed", "vte:ref-ops-151"),
+      });
+      const lineage = await ops.getVerificationLineage(vid);
+      check.equal("lineage_len", lineage.length, 2);
+      const successor = lineage.find((e) => e.revision_id === "rev:passed-1");
+      check.equal("predecessor", successor?.predecessor_revision_id, "rev:initial");
+    },
+  },
+  {
+    fixture_id: "REF-OPS-152",
+    title: "Decode round-trip reconstructs content + refs + VTE + artifact_ref",
+    scenario: "valid",
+    authorities: ["OPS-001", "ENC-001"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-152");
+      const vid = "verification:ref-ops-152";
+      const claim = "claim:ref-ops-152";
+      const artifact = "artifact:ref-ops-152-opaque";
+      await ops.registerVerificationUnit(
+        verificationInput(vid, {
+          claim_refs: [claim],
+          artifact_ref: artifact,
+        }),
+      );
+      await ops.transitionVerificationRecordState({
+        identity: vid,
+        revision_id: "rev:passed-1",
+        expected_head_revision_id: "rev:initial",
+        transition: verificationLeavePlanned("passed", "vte:ref-ops-152"),
+      });
+      const entity = await ops.getVerificationUnit(vid);
+      const decoded = verificationFromVerificationUnitPayload(entity.payload);
+      check.equal("state", decoded.record_state, "passed");
+      check.equal("outcome", decoded.verification_outcome, "passed");
+      check.equal("claim", decoded.claim_refs?.[0], claim);
+      check.equal("artifact_ref", decoded.artifact_ref, artifact);
+      check.equal("VTE", decoded.record_transition_log?.length ?? 0, 1);
+    },
+  },
+  {
+    fixture_id: "REF-OPS-153",
+    title: "Explicit membership; create/transition do not auto-register",
+    scenario: "valid",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-153");
+      const vid = "verification:ref-ops-153";
+      const session = ops.openSession({
+        research_session_id: "research:session:ref-ops-153",
+      });
+      await ops.registerVerificationUnit(verificationInput(vid));
+      check.equal("no auto members", session.members().length, 0);
+      ops.registerMember(session, {
+        entity_kind: "CanonicalUnit",
+        unit_kind: "VerificationUnit",
+        identity: vid,
+      });
+      check.equal("member count", session.members().length, 1);
+      check.equal("member identity", session.members()[0]?.identity, vid);
+      await ops.transitionVerificationRecordState({
+        identity: vid,
+        revision_id: "rev:passed-1",
+        expected_head_revision_id: "rev:initial",
+        transition: verificationLeavePlanned("passed", "vte:ref-ops-153"),
+      });
+      check.equal("members after transition", session.members().length, 1);
+    },
+  },
+  {
+    fixture_id: "REF-OPS-154",
+    title: "Snapshots frozen shape; persistence contains Verification revisions + head",
+    scenario: "valid",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-154");
+      const vid = "verification:ref-ops-154";
+      const session = ops.openSession({
+        research_session_id: "research:session:ref-ops-154",
+      });
+      const ws = ops.openWorkspace({
+        research_workspace_id: "workspace:ref-ops-154",
+      });
+      await ops.registerVerificationUnit(verificationInput(vid));
+      ops.registerMember(session, {
+        entity_kind: "CanonicalUnit",
+        unit_kind: "VerificationUnit",
+        identity: vid,
+      });
+      ops.registerWorkspaceMember(ws, {
+        entity_kind: "CanonicalUnit",
+        unit_kind: "VerificationUnit",
+        identity: vid,
+      });
+      await ops.transitionVerificationRecordState({
+        identity: vid,
+        revision_id: "rev:passed-1",
+        expected_head_revision_id: "rev:initial",
+        transition: verificationLeavePlanned("passed", "vte:ref-ops-154"),
+      });
+      const snap = await ops.snapshotView(session);
+      check.equal(
+        "session id shape",
+        snap.research_session_id,
+        "research:session:ref-ops-154",
+      );
+      const keys = snap.persistence_snapshot.entities.map((e) => e.storage_key);
+      check.ok(
+        "initial",
+        keys.some((k) => k.includes("VerificationUnit") && k.includes(":rev:initial")),
+      );
+      check.ok(
+        "successor",
+        keys.some((k) => k.includes(":rev:passed-1")),
+      );
+      check.ok(
+        "head",
+        keys.some((k) =>
+          k.includes("persist:RevisionHead:VerificationUnit:"),
+        ),
+      );
+      const wsnap = await ops.workspaceSnapshotView(ws);
+      check.equal(
+        "workspace id",
+        wsnap.research_workspace_id,
+        "workspace:ref-ops-154",
+      );
+    },
+  },
+  {
+    fixture_id: "REF-OPS-155",
+    title: "Operational event ops.verification_record_state_revision",
+    scenario: "valid",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-155");
+      const vid = "verification:ref-ops-155";
+      await ops.registerVerificationUnit(verificationInput(vid));
+      await ops.transitionVerificationRecordState({
+        identity: vid,
+        revision_id: "rev:passed-1",
+        expected_head_revision_id: "rev:initial",
+        append_event: true,
+        transition: verificationLeavePlanned("passed", "vte:ref-ops-155"),
+      });
+      const events = await ops.getEvents(vid);
+      const opsEvents = events.filter(
+        (e) => e.event_type === "ops.verification_record_state_revision",
+      );
+      check.equal("ops event count", opsEvents.length, 1);
+      check.equal("ops event_id", opsEvents[0]?.event_id, "ops:vte:ref-ops-155");
+      const defaultOps = makeOps("persist-sess:ref-ops-155-default");
+      await defaultOps.registerVerificationUnit(
+        verificationInput("verification:ref-ops-155-default"),
+      );
+      await defaultOps.transitionVerificationRecordState({
+        identity: "verification:ref-ops-155-default",
+        revision_id: "rev:passed-1",
+        expected_head_revision_id: "rev:initial",
+        transition: verificationLeavePlanned("passed", "vte:ref-ops-155-d"),
+      });
+      const none = (
+        await defaultOps.getEvents("verification:ref-ops-155-default")
+      ).filter((e) => e.event_type === "ops.verification_record_state_revision");
+      check.equal("default no ops event", none.length, 0);
+    },
+  },
+  {
+    fixture_id: "REF-OPS-156",
+    title: "Verification OPS does not create Persistence.Relationship entities",
+    scenario: "valid",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-156");
+      const vid = "verification:ref-ops-156";
+      await ops.registerVerificationUnit(
+        verificationInput(vid, {
+          claim_refs: ["claim:ref-ops-156"],
+          evidence_refs: ["evidence:ref-ops-156"],
+          contradiction_refs: ["contradiction:ref-ops-156"],
+          negative_result_refs: ["negresult:ref-ops-156"],
+        }),
+      );
+      await ops.transitionVerificationRecordState({
+        identity: vid,
+        revision_id: "rev:passed-1",
+        expected_head_revision_id: "rev:initial",
+        transition: verificationLeavePlanned("passed", "vte:ref-ops-156"),
+      });
+      const listed = await ops.repository.list({
+        filter: { entity_kind: "Relationship" },
+      });
+      check.equal("no_relationships", listed.total, 0);
+    },
+  },
+  {
+    fixture_id: "REF-OPS-157",
+    title: "Deterministic Verification export double-run",
+    scenario: "valid",
+    authorities: ["OPS-001", "SER-JSON-001"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      async function run() {
+        const ops = makeOps("persist-sess:ref-ops-157");
+        const vid = "verification:ref-ops-157";
+        await ops.registerVerificationUnit(verificationInput(vid));
+        await ops.transitionVerificationRecordState({
+          identity: vid,
+          revision_id: "rev:passed-1",
+          expected_head_revision_id: "rev:initial",
+          transition: verificationLeavePlanned("passed", "vte:ref-ops-157"),
+        });
+        return ops.exportVerificationUnit(vid);
+      }
+      const a = await run();
+      const b = await run();
+      check.equal("deterministic export", a, b);
+    },
+  },
+  {
+    fixture_id: "REF-OPS-158",
+    title: "Claim.verified_via coexistence with persisted Verification",
+    scenario: "valid",
+    authorities: ["OPS-001", "SCI-001", "SCI-006"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-158");
+      const vid = "verification:ref-ops-158";
+      const claimId = "claim:ref-ops-158";
+      await ops.registerVerificationUnit(
+        verificationInput(vid, { claim_refs: [claimId] }),
+      );
+      const claim = await ops.registerClaimUnit({
+        ...claimInput(claimId),
+        verified_via: [vid],
+      });
+      check.equal("verified_via", claim.claim.verified_via?.[0], vid);
+    },
+  },
+  {
+    fixture_id: "REF-OPS-159",
+    title: "NR + Contradiction optional refs coexistence",
+    scenario: "valid",
+    authorities: ["OPS-001", "SCI-006"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-159");
+      const cid = "contradiction:ref-ops-159";
+      const nid = "negresult:ref-ops-159";
+      const claimA = "claim:ref-ops-159-a";
+      const claimB = "claim:ref-ops-159-b";
+      await ops.registerContradictionUnit(
+        contradictionInput(cid, [claimA, claimB]),
+      );
+      await ops.registerNegativeResultUnit(
+        negativeResultInput(nid, { claim_refs: [claimA] }),
+        negativeResultRegistration("nrte:ref-ops-159"),
+      );
+      const r = await ops.registerVerificationUnit(
+        verificationInput("verification:ref-ops-159", {
+          claim_refs: [claimA],
+          contradiction_refs: [cid],
+          negative_result_refs: [nid],
+        }),
+      );
+      const contra = r.unit.envelope.references.filter(
+        (x) => x.role === "related_contradiction",
+      );
+      const nrs = r.unit.envelope.references.filter(
+        (x) => x.role === "related_negative_result",
+      );
+      check.equal("contradiction_ref", contra[0]?.identity, cid);
+      check.equal("nr_ref", nrs[0]?.identity, nid);
+    },
+  },
+  {
+    fixture_id: "REF-OPS-160",
+    title: "claim_refs absent from Persistence still registers",
+    scenario: "valid",
+    authorities: ["OPS-001", "SCI-006"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-160");
+      const r = await ops.registerVerificationUnit(
+        verificationInput("verification:ref-ops-160", {
+          claim_refs: ["claim:ref-ops-160-absent"],
+        }),
+      );
+      check.equal("state", r.verification.record_state, "planned");
+      check.equal(
+        "claim_ref",
+        r.verification.claim_refs?.[0],
+        "claim:ref-ops-160-absent",
+      );
+    },
+  },
+  {
+    fixture_id: "REF-OPS-161",
+    title: "Missing Verification transition propagates NOT_FOUND",
+    scenario: "invalid",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "failure", failure_code: "NOT_FOUND" },
+    async execute() {
+      const ops = makeOps("persist-sess:ref-ops-161");
+      await ops.transitionVerificationRecordState({
+        identity: "verification:ref-ops-161-missing",
+        revision_id: "rev:passed-1",
+        expected_head_revision_id: "rev:initial",
+        transition: verificationLeavePlanned("passed", "vte:ref-ops-161"),
       });
     },
   },

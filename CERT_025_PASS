@@ -1,0 +1,17 @@
+CERT_025_PASS
+SCI=44/44
+OPS=161/161
+FULL=205/205
+SCI_CONF=COMPLIANT CONF-001@1.0.0
+OPS_CONF=COMPLIANT CONF-001@1.1.0-OPS
+SCI_CERT=cert:sess-sprint-025-formal-sci:sciros-reference-test-suite:certified
+OPS_CERT=cert:sess-sprint-025-formal-ops:sciros-full-reference-corpus:certified
+TEST-016…025=PASS
+SMOKE-024=PASS
+SMOKE-025=PASS
+typecheck=PASS
+lint=PASS
+build=PASS
+determinism=PASS
+blockers=0
+required_patches=0

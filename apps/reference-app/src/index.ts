@@ -2,10 +2,11 @@
  * @sciros/reference-app — Research Operations / OPS shell.
  * Sprint 016 Claim + Sprint 018 Workspace + Sprint 019 Evidence + Sprint 020 Model C
  * + Sprint 021 Evidence Record State post-persist + Sprint 022 Grade OPS
- * + Sprint 023 Contradiction OPS + Sprint 024 Negative Result OPS.
+ * + Sprint 023 Contradiction OPS + Sprint 024 Negative Result OPS
+ * + Sprint 025 Verification OPS.
  * Orchestrates Core → ENC → Persistence → SER. Does NOT author scientific meaning.
  *
- * SPEC-016A · SPEC-018 · SPEC-019 · SPEC-020 · SPEC-021 · SPEC-022 · SPEC-023 · SPEC-024
+ * SPEC-016A · SPEC-018 · SPEC-019 · SPEC-020 · SPEC-021 · SPEC-022 · SPEC-023 · SPEC-024 · SPEC-025
  */
 
 export { OpsError, isOpsError, type OpsErrorCode } from "./errors/ops-error.js";
@@ -44,16 +45,22 @@ export {
   type RegisterNegativeResultUnitResult,
   type TransitionNegativeResultRecordStateInput,
   type TransitionNegativeResultRecordStateResult,
+  type RegisterVerificationUnitOptions,
+  type RegisterVerificationUnitResult,
+  type TransitionVerificationRecordStateInput,
+  type TransitionVerificationRecordStateResult,
   type ClaimLineageEntry,
   type EvidenceLineageEntry,
   type ContradictionLineageEntry,
   type NegativeResultLineageEntry,
+  type VerificationLineageEntry,
 } from "./operations/research-operations.js";
 
 export { claimFromClaimUnitPayload } from "./operations/claim-from-unit.js";
 export { evidenceFromEvidenceUnitPayload } from "./operations/evidence-from-unit.js";
 export { contradictionFromContradictionUnitPayload } from "./operations/contradiction-from-unit.js";
 export { negativeResultFromNegativeResultUnitPayload } from "./operations/negative-result-from-unit.js";
+export { verificationFromVerificationUnitPayload } from "./operations/verification-from-unit.js";
 
 export {
   projectTimeline,
@@ -66,7 +73,7 @@ export {
 
 export interface ReferenceAppMarker {
   readonly packageId: "@sciros/reference-app";
-  readonly sprint: 24;
+  readonly sprint: 25;
   readonly duplicatesProcessorLogic: false;
   readonly researchSessionPersisted: false;
   readonly researchWorkspacePersisted: false;
@@ -76,7 +83,7 @@ export interface ReferenceAppMarker {
 
 export const referenceAppMarker: ReferenceAppMarker = {
   packageId: "@sciros/reference-app",
-  sprint: 24,
+  sprint: 25,
   duplicatesProcessorLogic: false,
   researchSessionPersisted: false,
   researchWorkspacePersisted: false,

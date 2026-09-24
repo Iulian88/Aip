@@ -6,7 +6,9 @@ import type {
   CreateContradictionInput,
   CreateEvidenceInput,
   CreateNegativeResultInput,
+  CreateVerificationInput,
   NegativeResultRecordTransitionInput,
+  VerificationRecordTransitionInput,
 } from "@sciros/core";
 import {
   createResearchOperations,
@@ -132,6 +134,50 @@ export function negativeResultRegistration(
     authority_agent: OPS_HUMAN,
     reason: "REF-OPS negative result registration",
     decision_ref: `decision:${eventId.replace(/^nrte:/, "")}`,
+    at: OPS_AT,
+    event_id: eventId,
+    ...overrides,
+  };
+}
+
+/** Deterministic Verification createPlanned input for REF-OPS Verification fixtures (O-025-01). */
+export function verificationInput(
+  verificationId: string,
+  overrides: Partial<CreateVerificationInput> = {},
+): CreateVerificationInput {
+  return {
+    verification_id: verificationId,
+    summary: "REF-OPS orchestration verification",
+    description: "protocol-scoped verification of claim or evidence target",
+    scope: OPS_SCOPE,
+    protocol_ref: `protocol:${verificationId.replace(/^verification:/, "")}`,
+    verification_method: "protocol_conformance",
+    verification_context: "REF-OPS cohort assay",
+    verification_rationale: "deterministic REF-OPS verification rationale",
+    provenance: {
+      completeness: "complete",
+      recorded_at: OPS_AT,
+      custody_agent: OPS_HUMAN,
+      method_summary: "REF-OPS verification createPlanned",
+    },
+    created_by: OPS_HUMAN,
+    created_at: OPS_AT,
+    claim_refs: [`claim:${verificationId.replace(/^verification:/, "")}`],
+    ...overrides,
+  };
+}
+
+/** Human leave-planned transition input (O-025-02 / O-025-03 — to only; no outcome field). */
+export function verificationLeavePlanned(
+  to: "passed" | "failed" | "inconclusive",
+  eventId: string,
+  overrides: Partial<VerificationRecordTransitionInput> = {},
+): VerificationRecordTransitionInput {
+  return {
+    to,
+    authority_agent: OPS_HUMAN,
+    reason: `REF-OPS leave planned → ${to}`,
+    decision_ref: `decision:${eventId.replace(/^vte:/, "")}`,
     at: OPS_AT,
     event_id: eventId,
     ...overrides,

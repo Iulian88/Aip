@@ -6,6 +6,7 @@
  * Sprint 022: Evidence Grade assignment post-persist (Model C).
  * Sprint 023: Contradiction create-once + Record State post-persist (Model C).
  * Sprint 024: Negative Result create-once + Record State post-persist (Model C).
+ * Sprint 025: Verification create-once + Record State post-persist (Model C).
  */
 
 import {
@@ -18,12 +19,15 @@ import {
   EvidenceTransitionService,
   NegativeResultFactory,
   NegativeResultTransitionService,
+  VerificationFactory,
+  VerificationTransitionService,
   type Claim,
   type Contradiction,
   type CreateClaimInput,
   type CreateContradictionInput,
   type CreateEvidenceInput,
   type CreateNegativeResultInput,
+  type CreateVerificationInput,
   type ContradictionRecordTransitionInput,
   type Evidence,
   type EvidenceRecordTransitionInput,
@@ -31,6 +35,8 @@ import {
   type NegativeResult,
   type NegativeResultRecordTransitionInput,
   type StandingTransitionInput,
+  type Verification,
+  type VerificationRecordTransitionInput,
 } from "@sciros/core";
 import { CanonicalEncoder, type CanonicalUnit } from "@sciros/encoding";
 import {
@@ -63,6 +69,7 @@ import { claimFromClaimUnitPayload } from "./claim-from-unit.js";
 import { contradictionFromContradictionUnitPayload } from "./contradiction-from-unit.js";
 import { evidenceFromEvidenceUnitPayload } from "./evidence-from-unit.js";
 import { negativeResultFromNegativeResultUnitPayload } from "./negative-result-from-unit.js";
+import { verificationFromVerificationUnitPayload } from "./verification-from-unit.js";
 
 export interface ResearchOperationsDeps {
   readonly claimFactory: ClaimFactory;
@@ -74,6 +81,8 @@ export interface ResearchOperationsDeps {
   readonly contradictionTransitions: ContradictionTransitionService;
   readonly negativeResultFactory: NegativeResultFactory;
   readonly negativeResultTransitions: NegativeResultTransitionService;
+  readonly verificationFactory: VerificationFactory;
+  readonly verificationTransitions: VerificationTransitionService;
   readonly encoder: CanonicalEncoder;
   readonly jsonEncoder: JsonEncoder;
   /** Infrastructure PersistenceSession — distinct from ResearchSession. */
@@ -227,6 +236,37 @@ export interface TransitionNegativeResultRecordStateResult {
 
 export type NegativeResultLineageEntry = ClaimLineageEntry;
 
+export interface RegisterVerificationUnitOptions {
+  /** Model C revision id; default rev:initial. Create-once only. */
+  readonly revision_id?: string;
+}
+
+export interface RegisterVerificationUnitResult {
+  readonly verification: Verification;
+  readonly unit: CanonicalUnit;
+  readonly entity: PersistenceEntity;
+}
+
+export interface TransitionVerificationRecordStateInput {
+  readonly identity: string;
+  readonly transition: VerificationRecordTransitionInput;
+  /** New immutable revision id (caller-supplied rev:…). */
+  readonly revision_id: string;
+  /** Expected current RevisionHead pointer (CAS). */
+  readonly expected_head_revision_id: string;
+  /** When true, append ops.verification_record_state_revision operational event. */
+  readonly append_event?: boolean;
+}
+
+export interface TransitionVerificationRecordStateResult {
+  readonly verification: Verification;
+  readonly unit: CanonicalUnit;
+  readonly entity: PersistenceEntity;
+  readonly head_revision_id: string;
+}
+
+export type VerificationLineageEntry = ClaimLineageEntry;
+
 export class ResearchOperations {
   private readonly claims: ClaimFactory;
   private readonly claimTransitions: ClaimTransitionService;
@@ -237,6 +277,8 @@ export class ResearchOperations {
   private readonly contradictionTransitions: ContradictionTransitionService;
   private readonly negativeResultFactory: NegativeResultFactory;
   private readonly negativeResultTransitions: NegativeResultTransitionService;
+  private readonly verificationFactory: VerificationFactory;
+  private readonly verificationTransitions: VerificationTransitionService;
   private readonly encoder: CanonicalEncoder;
   private readonly jsonEncoder: JsonEncoder;
   private readonly persistenceSession: PersistenceSession;
@@ -253,6 +295,8 @@ export class ResearchOperations {
     this.contradictionTransitions = deps.contradictionTransitions;
     this.negativeResultFactory = deps.negativeResultFactory;
     this.negativeResultTransitions = deps.negativeResultTransitions;
+    this.verificationFactory = deps.verificationFactory;
+    this.verificationTransitions = deps.verificationTransitions;
     this.encoder = deps.encoder;
     this.jsonEncoder = deps.jsonEncoder;
     this.persistenceSession = deps.persistenceSession;
@@ -766,6 +810,107 @@ export class ResearchOperations {
   }
 
   /**
+   * Core VerificationFactory.createPlanned → ENC assemble → Persistence create (Model C rev:initial) → ensureInitialHead.
+   * Does NOT append events or register membership (call those separately — Claim/Evidence/Contradiction/NR parity).
+   * Create is ungated (O-025-01); no registration transition argument.
+   * Lower-layer errors propagate unchanged.
+   */
+  async registerVerificationUnit(
+    input: CreateVerificationInput,
+    options?: RegisterVerificationUnitOptions,
+  ): Promise<RegisterVerificationUnitResult> {
+    const revision_id = options?.revision_id ?? INITIAL_REVISION_ID;
+    assertRevisionId(revision_id);
+    if (revision_id !== INITIAL_REVISION_ID) {
+      throw new OpsError(
+        "INVALID_COMMAND_STATE",
+        "registerVerificationUnit creates initial revision only; use transitionVerificationRecordState for later revisions",
+      );
+    }
+    const verification = this.verificationFactory.createPlanned(input);
+    const unit = await this.encoder.assemble(verification);
+    const entity = entityFromCanonicalUnit(unit, { revision_id });
+    const stored = await this.repository.create(entity);
+    await this.repository.ensureInitialHead(
+      verification.verification_id,
+      "VerificationUnit",
+      revision_id,
+    );
+    return { verification, unit, entity: stored };
+  }
+
+  /**
+   * Post-persist Verification Record State leave-planned (Model C).
+   * Core validates → new immutable revision → advanceHead CAS → optional appendEvent.
+   * Partial-write: if advanceHead fails after create, revision row may exist without becoming head.
+   */
+  async transitionVerificationRecordState(
+    input: TransitionVerificationRecordStateInput,
+  ): Promise<TransitionVerificationRecordStateResult> {
+    assertRevisionId(input.revision_id);
+    assertRevisionId(input.expected_head_revision_id, "expected_head_revision_id");
+    if (input.revision_id === INITIAL_REVISION_ID) {
+      throw new OpsError(
+        "INVALID_COMMAND_STATE",
+        "transitionVerificationRecordState revision_id must not be rev:initial",
+      );
+    }
+    if (input.revision_id === input.expected_head_revision_id) {
+      throw new OpsError(
+        "INVALID_COMMAND_STATE",
+        "revision_id must differ from expected_head_revision_id",
+      );
+    }
+
+    const priorEntity = await this.getVerificationUnit(input.identity);
+    const prior = verificationFromVerificationUnitPayload(priorEntity.payload);
+    const verification = this.verificationTransitions.transition(
+      prior,
+      input.transition,
+    );
+    const unit = await this.encoder.assemble(verification);
+
+    const entity = entityFromCanonicalUnit(unit, {
+      revision_id: input.revision_id,
+      predecessor_revision_id: input.expected_head_revision_id,
+    });
+    const stored = await this.repository.create(entity);
+
+    const head = await this.repository.advanceHead(
+      input.identity,
+      "VerificationUnit",
+      input.expected_head_revision_id,
+      input.revision_id,
+    );
+
+    if (input.append_event === true) {
+      const event_id =
+        input.transition.event_id !== undefined
+          ? `ops:${input.transition.event_id}`
+          : `ops:verification_record_state:${input.identity}:${input.revision_id}`;
+      await this.repository.appendEvent(input.identity, {
+        event_id,
+        parent_identity: input.identity,
+        event_type: "ops.verification_record_state_revision",
+        payload: Object.freeze({
+          revision_id: input.revision_id,
+          predecessor_revision_id: input.expected_head_revision_id,
+          unit_kind: "VerificationUnit",
+          to_record_state: input.transition.to,
+        }),
+        ordinal: 0,
+      });
+    }
+
+    return {
+      verification,
+      unit,
+      entity: stored,
+      head_revision_id: head.content_version,
+    };
+  }
+
+  /**
    * Explicit Persistence.appendEvent — sole event journal (SPEC-016A P-016-004).
    * Caller must supply deterministic event_id. Lower-layer errors propagate unchanged.
    */
@@ -1091,6 +1236,67 @@ export class ResearchOperations {
     );
     return this.jsonEncoder.encode(entity.payload);
   }
+
+  async getVerificationUnit(identity: string): Promise<PersistenceEntity> {
+    return this.repository.get(identity, "CanonicalUnit", {
+      unit_kind: "VerificationUnit",
+    });
+  }
+
+  async getVerificationUnitRevision(
+    identity: string,
+    revision_id: string,
+  ): Promise<PersistenceEntity> {
+    return this.repository.get(identity, "CanonicalUnit", {
+      unit_kind: "VerificationUnit",
+      revision_id,
+    });
+  }
+
+  async getVerificationHead(identity: string): Promise<PersistenceEntity> {
+    return this.repository.getHead(identity, "VerificationUnit");
+  }
+
+  async getVerificationLineage(
+    identity: string,
+  ): Promise<readonly VerificationLineageEntry[]> {
+    const rows = await this.repository.listRevisions(
+      identity,
+      "VerificationUnit",
+    );
+    return Object.freeze(
+      rows.map((e) =>
+        Object.freeze({
+          revision_id: e.revision_id ?? INITIAL_REVISION_ID,
+          ...(e.predecessor_revision_id !== undefined
+            ? { predecessor_revision_id: e.predecessor_revision_id }
+            : {}),
+          content_version: e.content_version,
+          storage_key: e.storage_key,
+        }),
+      ),
+    );
+  }
+
+  /**
+   * SER-JSON-001 encode of head-resolved VerificationUnit payload.
+   * Lower-layer errors propagate unchanged.
+   */
+  async exportVerificationUnit(identity: string): Promise<string> {
+    const entity = await this.getVerificationUnit(identity);
+    return this.jsonEncoder.encode(entity.payload);
+  }
+
+  async exportVerificationUnitRevision(
+    identity: string,
+    revision_id: string,
+  ): Promise<string> {
+    const entity = await this.getVerificationUnitRevision(
+      identity,
+      revision_id,
+    );
+    return this.jsonEncoder.encode(entity.payload);
+  }
 }
 
 /** Convenience factory with default Core/ENC/SER instances. */
@@ -1116,6 +1322,8 @@ export function createResearchOperations(
     contradictionTransitions: new ContradictionTransitionService(),
     negativeResultFactory: new NegativeResultFactory(),
     negativeResultTransitions: new NegativeResultTransitionService(),
+    verificationFactory: new VerificationFactory(),
+    verificationTransitions: new VerificationTransitionService(),
     encoder: new CanonicalEncoder(),
     jsonEncoder: new JsonEncoder(),
     persistenceSession,
