@@ -1,0 +1,126 @@
+{
+  "sprint": 26,
+  "subject": "Provenance Projection & Reproducibility Packaging",
+  "scope": "Export-only ResearchRun packaging via ResearchOperations.packageResearchRun; deterministic ReproducibilityPackage aip.repro.pack@1.0.0 with SHA-256 content_digest; provenance axis separation; revision_id ASC packaging order with predecessor_revision_id lineage preserved; Model C read-only; no Persistence/ENC/SER/CONF/CERT redesign; no import/restore; no second journal/graph/identity; packaging reproducibility only (not computational reproducibility)",
+  "spec": "SPEC-026 (audited)",
+  "architecture": {
+    "model": "Model C (unchanged)",
+    "model_description": "Stable Scientific Identity + Immutable Revisions + RevisionHead + CAS head advancement",
+    "research_run": "export-time projection only (not ScientificUnit / PersistenceEntity)",
+    "packaging_api": "packageResearchRun",
+    "helper_module": "operations/reproducibility-packaging.ts",
+    "schema_id": "aip.repro.pack@1.0.0",
+    "package_id_grammar": "rpkg:[A-Za-z0-9._~-]{1,128}",
+    "revision_order": "revision_id ASCENDING",
+    "lineage_semantic": "predecessor_revision_id",
+    "integrity": "sha256 hex over stableStringify(body without content_digest)",
+    "profiles": [
+      "minimal",
+      "with_ops_events"
+    ],
+    "revision_policies": [
+      "heads_only",
+      "explicit_revisions",
+      "full_lineage"
+    ],
+    "encoder": "existing CanonicalEncoder (payload already persisted); JsonEncoder for unit SER",
+    "serializer": "SER stableStringify for package container",
+    "chain": "OPS → REF-OPS → ReferenceRunner → ReferenceReport → ConformanceEngine(profile) → ConformanceReport(profile_id) → CertificationEngine → Certificate",
+    "conformance_engines": 1,
+    "certification_engines": 1,
+    "second_event_journal": false,
+    "second_identity_system": false
+  },
+  "audit": {
+    "architecture_audit": "ARCHITECTURE-AUDIT-026 / FINAL-ARCHITECTURE-RE-AUDIT-026 APPROVED WITH OBSERVATIONS · EXEC AUTHORIZED",
+    "code_audit": "CODE-AUDIT-026 APPROVED WITH OBSERVATIONS",
+    "required_patches": 0,
+    "blockers": 0
+  },
+  "execution": {
+    "status": "COMPLETE",
+    "path": "packageResearchRun → Persistence get/getHead/listRevisions/getEvents (read-only) → JsonEncoder.encode → sealReproducibilityPackage → stableStringify"
+  },
+  "corpora": {
+    "REF_CORPUS_SCI": 44,
+    "REF_CORPUS_OPS": 180,
+    "REF_CORPUS_FULL": 224,
+    "sci_pass": 44,
+    "ops_pass": 180,
+    "full_pass": 224,
+    "packaging_ops_fixtures": "REF-OPS-162…REF-OPS-180",
+    "new_ops_fixtures": 19
+  },
+  "sci": {
+    "profile_id": "CONF-001@1.0.0",
+    "corpus": "REF-CORPUS-SCI",
+    "conformance_overall": "COMPLIANT",
+    "certification_decision": "CERTIFIED",
+    "certificate_id": "cert:sess-sprint-026-formal-sci:sciros-reference-test-suite:certified",
+    "scope": [
+      "SCI-000",
+      "SCI-001",
+      "SCI-002",
+      "SCI-003",
+      "SCI-004",
+      "SCI-005",
+      "SCI-006",
+      "ENC-001",
+      "SER-001",
+      "SER-JSON-001",
+      "RPR-001",
+      "ADR-0006",
+      "CONF-001"
+    ]
+  },
+  "ops": {
+    "profile_id": "CONF-001@1.1.0-OPS",
+    "corpus": "REF-CORPUS-FULL",
+    "ops_authoring_corpus": "REF-CORPUS-OPS",
+    "conformance_overall": "COMPLIANT",
+    "certification_decision": "CERTIFIED",
+    "certificate_id": "cert:sess-sprint-026-formal-ops:sciros-full-reference-corpus:certified",
+    "scope": [
+      "SCI-000",
+      "SCI-001",
+      "SCI-002",
+      "SCI-003",
+      "SCI-004",
+      "SCI-005",
+      "SCI-006",
+      "ENC-001",
+      "SER-001",
+      "SER-JSON-001",
+      "RPR-001",
+      "ADR-0006",
+      "CONF-001",
+      "OPS-001"
+    ]
+  },
+  "regression": {
+    "TEST-016": "10/10 PASS",
+    "TEST-017": "12/12 PASS",
+    "TEST-018": "10/10 PASS",
+    "TEST-019": "10/10 PASS",
+    "TEST-020": "22/22 PASS",
+    "TEST-021": "15/15 PASS",
+    "TEST-022": "7/7 PASS",
+    "TEST-023": "7/7 PASS",
+    "TEST-024": "7/7 PASS",
+    "TEST-025": "7/7 PASS",
+    "TEST-026": "10/10 PASS",
+    "smoke": "smoke-026 PASS",
+    "typecheck": "PASS",
+    "lint": "PASS",
+    "build": "PASS",
+    "determinism": "PASS"
+  },
+  "observations_non_blocking": [
+    "O-CA-026-01: unit_kind resolved via certified identity-prefix grammar; unitKindFromEntity unused (O-FAR-026-01 envelope-first remains hardening note)",
+    "O-CA-026-02: non-intact guard covered via revisionEntryFromEntity helper (Persistence refuses non-intact create)",
+    "O-CA-026-03: session+workspace member_refs pooled without explicit identity dedupe (Decision requires inclusion filter only)"
+  ],
+  "formal_status": "CERTIFIED",
+  "closure": "PENDING_GIT_CLOSURE",
+  "note": "Engine CertificationDecision CERTIFIED for SCI and OPS; non-blocking CODE-AUDIT observations recorded separately. Sprint not closed until final Git commit+push."
+}

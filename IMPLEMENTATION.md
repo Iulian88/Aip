@@ -1,25 +1,25 @@
 # SciROS Reference Implementation
 
-**Sprint:** EXEC-SPRINT-025 · Verification OPS  
-**Status:** **IMPLEMENTATION COMPLETE** (pending CODE-AUDIT-025; not formally certified by this EXEC)
+**Sprint:** EXEC-SPRINT-026 · Provenance Projection & Reproducibility Packaging  
+**Status:** **IMPLEMENTATION COMPLETE** (pending CODE-AUDIT-026; not formally certified by this EXEC)
 
 | Field | Value |
 |-------|--------|
 | Implementation | COMPLETE |
-| Architecture | SPEC-025 · IMPLEMENTATION-DECISION-025 · FINAL-ARCHITECTURE-RE-AUDIT-025 — EXEC AUTHORIZED (exact scope) |
+| Architecture | SPEC-026 · IMPLEMENTATION-DECISION-026 · FINAL-ARCHITECTURE-RE-AUDIT-026 — EXEC AUTHORIZED (exact scope) |
 | SCI profile | `CONF-001@1.0.0` |
 | OPS profile | `CONF-001@1.1.0-OPS` |
-| Corpora (live) | SCI 44/44 · OPS 161/161 · FULL 205/205 |
-| Prior certified baseline | Sprint 024 @ `47efca4` — FORMALLY CERTIFIED AND CLOSED |
+| Corpora (live) | SCI 44/44 · OPS 180/180 · FULL 224/224 |
+| Prior certified baseline | Sprint 025 @ `8541b20` — FORMALLY CERTIFIED AND CLOSED |
 
 | Field | Value |
 |-------|--------|
-| SPEC | SPEC-025 |
-| Slice | Verification create-once + Record State leave-planned post-persist OPS under Model C |
-| Representation | VerificationUnit |
-| Core | `VerificationFactory.createPlanned` · `VerificationTransitionService.transition` |
-| Revision model | Certified Model C (unchanged) |
-| Head | `persist:RevisionHead:VerificationUnit:{identity}` · CAS via `advanceHead` |
+| SPEC | SPEC-026 |
+| Slice | Export-only ResearchRun packaging + provenance projection (Phase R2) |
+| Representation | `aip.repro.pack@1.0.0` ReproducibilityPackage (derived) |
+| Core | Untouched — packaging never authors scientific meaning |
+| Revision model | Certified Model C (unchanged); package order = `revision_id` ASC |
+| Head | Persistence-owned RevisionHead (read-only for packaging) |
 
 ## Commands
 
@@ -49,6 +49,8 @@ node scripts/test-024-negative-result-ops.mjs
 node scripts/smoke-024-negative-result-ops.mjs
 node scripts/test-025-verification-ops.mjs
 node scripts/smoke-025-verification-ops.mjs
+node scripts/test-026-reproducibility-packaging.mjs
+node scripts/smoke-026-reproducibility-packaging.mjs
 ```
 
 ## Evidence chain (unchanged)
@@ -58,6 +60,46 @@ OPS → REF-OPS → ReferenceRunner → ReferenceReport
     → ConformanceEngine(profile) → ConformanceReport(profile_id)
     → CertificationEngine → Certificate
 ```
+
+## Sprint 026 — Provenance Projection & Reproducibility Packaging
+
+### OPS
+
+- `packageResearchRun(input)` → export-time ResearchRun projection → deterministic `ReproducibilityPackage` + `ser`
+- Helpers in `operations/reproducibility-packaging.ts` (ordering, locators, axis declaration, SHA-256 digest, verify)
+- Profiles: `minimal` \| `with_ops_events`
+- Revision policies: `heads_only` \| `explicit_revisions` \| `full_lineage`
+- Caller-supplied `package_id` (`rpkg:…`); `content_digest` = SHA-256 hex over `stableStringify(body without digest)`
+- Optional organizational context: filtered `member_refs` + session/workspace ids (not scientific)
+- `verifyReproducibilityPackage` recomputes digest — does **not** restore Persistence
+- Marker sprint → **26**
+
+### Determinism
+
+- No `Date.now` / `randomUUID` / `Math.random` on certified packaging paths
+- Double-run identical authoritative inputs → identical `ser`
+- Collections sorted per Decision-026 (`revision_id` ASCENDING; identities/locators codepoint ASC)
+
+### Authority
+
+- Package is DERIVED export artifact — never scientific authority
+- Seven provenance axes kept separate (no generic provenance graph)
+- No second journal / graph / RevisionHead for ResearchRun
+
+### Tests
+
+- `scripts/test-026-reproducibility-packaging.mjs` (10 assertion tests)
+- `scripts/smoke-026-reproducibility-packaging.mjs` → `SMOKE_026_PASS` only
+- Additive REF-OPS-162…180
+- Regression: Sprint 016–025 tests green; SCI 44; OPS 180; FULL 224
+
+### Limitations / non-goals
+
+- Export-only — no import / restore / rehydration / durable bundle store
+- No Literature / DocumentArtifact / AI / KG / DB
+- No Persistence / Core / ENC / SER / CONF / CERT redesign
+- Packaging reproducibility ≠ computational reproducibility
+- Formal certification is a later gate (CODE-AUDIT-026 → CERT)
 
 ## Sprint 025 — Verification OPS Under Model C
 

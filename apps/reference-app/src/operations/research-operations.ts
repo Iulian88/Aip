@@ -7,6 +7,7 @@
  * Sprint 023: Contradiction create-once + Record State post-persist (Model C).
  * Sprint 024: Negative Result create-once + Record State post-persist (Model C).
  * Sprint 025: Verification create-once + Record State post-persist (Model C).
+ * Sprint 026: Provenance projection + reproducibility packaging (export-only).
  */
 
 import {
@@ -69,7 +70,64 @@ import { claimFromClaimUnitPayload } from "./claim-from-unit.js";
 import { contradictionFromContradictionUnitPayload } from "./contradiction-from-unit.js";
 import { evidenceFromEvidenceUnitPayload } from "./evidence-from-unit.js";
 import { negativeResultFromNegativeResultUnitPayload } from "./negative-result-from-unit.js";
+import {
+  REPRO_PACK_SCHEMA_ID,
+  assertPackageId,
+  assertPackagingProfile,
+  assertRevisionPolicy,
+  axisDeclaration,
+  extractSourceLocators,
+  filterMemberRefs,
+  projectOpsEvents,
+  revisionEntryFromEntity,
+  sealReproducibilityPackage,
+  serializeReproducibilityPackage,
+  sortCodepoint,
+  unitKindFromIdentity,
+  type PackageArtifactEntry,
+  type PackageMemberRef,
+  type PackagingProfile,
+  type ReproducibilityPackage,
+  type RevisionPolicy,
+} from "./reproducibility-packaging.js";
 import { verificationFromVerificationUnitPayload } from "./verification-from-unit.js";
+
+export type {
+  PackageArtifactEntry,
+  PackageMemberRef,
+  PackageOpsEvent,
+  PackageRevisionEntry,
+  PackagingProfile,
+  ReproducibilityPackage,
+  RevisionPolicy,
+} from "./reproducibility-packaging.js";
+export {
+  REPRO_PACK_SCHEMA_ID,
+  assertPackageId,
+  revisionEntryFromEntity,
+  serializeReproducibilityPackage,
+  verifyReproducibilityPackage,
+} from "./reproducibility-packaging.js";
+
+export interface PackageResearchRunInput {
+  readonly package_id: string;
+  readonly included_identities: readonly string[];
+  readonly revision_policy: RevisionPolicy;
+  readonly packaging_profile: PackagingProfile;
+  readonly explicit_revisions?: readonly {
+    readonly identity: string;
+    readonly revision_id: string;
+  }[];
+  readonly session?: ResearchSession;
+  readonly workspace?: ResearchWorkspace;
+  readonly generated_at?: string;
+  readonly include_organizational_context?: boolean;
+}
+
+export interface PackageResearchRunResult {
+  readonly package: ReproducibilityPackage;
+  readonly ser: string;
+}
 
 export interface ResearchOperationsDeps {
   readonly claimFactory: ClaimFactory;
@@ -1296,6 +1354,171 @@ export class ResearchOperations {
       revision_id,
     );
     return this.jsonEncoder.encode(entity.payload);
+  }
+
+  /**
+   * Export-only reproducibility packaging (SPEC-026 / Decision-026).
+   * ResearchRun is an in-memory export-time projection — not persisted, not scientific.
+   * Does not create Persistence entities, RevisionHeads, relationships, or journals.
+   */
+  async packageResearchRun(
+    input: PackageResearchRunInput,
+  ): Promise<PackageResearchRunResult> {
+    assertPackageId(input.package_id);
+    assertPackagingProfile(input.packaging_profile);
+    assertRevisionPolicy(input.revision_policy);
+
+    if (
+      !Array.isArray(input.included_identities) ||
+      input.included_identities.length < 1
+    ) {
+      throw new OpsError(
+        "INVALID_COMMAND_STATE",
+        "included_identities must be a non-empty array",
+      );
+    }
+
+    if (input.revision_policy === "explicit_revisions") {
+      if (
+        !Array.isArray(input.explicit_revisions) ||
+        input.explicit_revisions.length < 1
+      ) {
+        throw new OpsError(
+          "INVALID_COMMAND_STATE",
+          "explicit_revisions policy requires a non-empty explicit_revisions list",
+        );
+      }
+    }
+
+    const included_identities = Object.freeze(
+      [...new Set(input.included_identities)].sort(sortCodepoint),
+    );
+    const includedSet = new Set(included_identities);
+
+    const artifact_entries: PackageArtifactEntry[] = [];
+    const entitiesForLocators: PersistenceEntity[] = [];
+
+    for (const identity of included_identities) {
+      const unit_kind = unitKindFromIdentity(identity);
+      const headPtr = await this.repository.getHead(identity, unit_kind);
+      const head_revision_id = headPtr.content_version;
+
+      let selected: readonly PersistenceEntity[];
+      if (input.revision_policy === "heads_only") {
+        selected = [
+          await this.repository.get(identity, "CanonicalUnit", {
+            unit_kind,
+            revision_id: head_revision_id,
+          }),
+        ];
+      } else if (input.revision_policy === "full_lineage") {
+        selected = await this.repository.listRevisions(identity, unit_kind);
+      } else {
+        const wanted = (input.explicit_revisions ?? [])
+          .filter((r) => r.identity === identity)
+          .map((r) => r.revision_id);
+        if (wanted.length < 1) {
+          throw new OpsError(
+            "INVALID_COMMAND_STATE",
+            `explicit_revisions missing entries for identity: ${identity}`,
+          );
+        }
+        const rows: PersistenceEntity[] = [];
+        for (const revision_id of wanted) {
+          rows.push(
+            await this.repository.get(identity, "CanonicalUnit", {
+              unit_kind,
+              revision_id,
+            }),
+          );
+        }
+        selected = rows;
+      }
+
+      const revisions = selected
+        .map((entity) =>
+          revisionEntryFromEntity(
+            entity,
+            this.jsonEncoder.encode(entity.payload),
+          ),
+        )
+        .slice()
+        .sort((a, b) => sortCodepoint(a.revision_id, b.revision_id));
+
+      for (const entity of selected) entitiesForLocators.push(entity);
+
+      artifact_entries.push(
+        Object.freeze({
+          identity,
+          unit_kind,
+          head_revision_id,
+          revisions: Object.freeze(revisions),
+        }),
+      );
+    }
+
+    artifact_entries.sort((a, b) => sortCodepoint(a.identity, b.identity));
+
+    const source_locators = extractSourceLocators(entitiesForLocators);
+    const include_ops_events = input.packaging_profile === "with_ops_events";
+    const include_org = input.include_organizational_context === true;
+    const include_session = include_org && input.session !== undefined;
+    const include_workspace = include_org && input.workspace !== undefined;
+
+    let member_refs: readonly PackageMemberRef[] | undefined;
+    if (include_session || include_workspace) {
+      const pooled: (SessionMemberRef | WorkspaceMemberRef)[] = [];
+      if (include_session && input.session) {
+        for (const m of input.session.members()) pooled.push(m);
+      }
+      if (include_workspace && input.workspace) {
+        for (const m of input.workspace.members()) pooled.push(m);
+      }
+      member_refs = filterMemberRefs(pooled, includedSet);
+    }
+
+    let ops_events;
+    if (include_ops_events) {
+      const collected: PersistenceEvent[] = [];
+      for (const identity of included_identities) {
+        const events = await this.repository.getEvents(identity);
+        for (const e of events) collected.push(e);
+      }
+      ops_events = projectOpsEvents(collected);
+    }
+
+    const withoutDigest = {
+      schema_id: REPRO_PACK_SCHEMA_ID,
+      package_id: input.package_id,
+      packaging_profile: input.packaging_profile,
+      included_identities,
+      revision_policy: input.revision_policy,
+      artifact_entries: Object.freeze(artifact_entries),
+      source_locators,
+      axis_declaration: axisDeclaration({
+        packaging_profile: input.packaging_profile,
+        include_session,
+        include_workspace,
+        include_ops_events,
+      }),
+      ...(include_session && input.session
+        ? { session_id: input.session.research_session_id }
+        : {}),
+      ...(include_workspace && input.workspace
+        ? { workspace_id: input.workspace.research_workspace_id }
+        : {}),
+      ...(member_refs !== undefined ? { member_refs } : {}),
+      ...(ops_events !== undefined ? { ops_events } : {}),
+      ...(input.generated_at !== undefined
+        ? { generated_at: input.generated_at }
+        : {}),
+    };
+
+    const pkg = sealReproducibilityPackage(withoutDigest);
+    return Object.freeze({
+      package: pkg,
+      ser: serializeReproducibilityPackage(pkg),
+    });
   }
 }
 

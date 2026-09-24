@@ -3,10 +3,10 @@
  * Sprint 016 Claim + Sprint 018 Workspace + Sprint 019 Evidence + Sprint 020 Model C
  * + Sprint 021 Evidence Record State post-persist + Sprint 022 Grade OPS
  * + Sprint 023 Contradiction OPS + Sprint 024 Negative Result OPS
- * + Sprint 025 Verification OPS.
+ * + Sprint 025 Verification OPS + Sprint 026 Provenance / Reproducibility Packaging.
  * Orchestrates Core → ENC → Persistence → SER. Does NOT author scientific meaning.
  *
- * SPEC-016A · SPEC-018 · SPEC-019 · SPEC-020 · SPEC-021 · SPEC-022 · SPEC-023 · SPEC-024 · SPEC-025
+ * SPEC-016A · SPEC-018 · SPEC-019 · SPEC-020 · SPEC-021 · SPEC-022 · SPEC-023 · SPEC-024 · SPEC-025 · SPEC-026
  */
 
 export { OpsError, isOpsError, type OpsErrorCode } from "./errors/ops-error.js";
@@ -26,6 +26,11 @@ export type {
 export {
   ResearchOperations,
   createResearchOperations,
+  REPRO_PACK_SCHEMA_ID,
+  assertPackageId,
+  revisionEntryFromEntity,
+  serializeReproducibilityPackage,
+  verifyReproducibilityPackage,
   type ResearchOperationsDeps,
   type RegisterClaimUnitResult,
   type RegisterEvidenceUnitResult,
@@ -54,6 +59,15 @@ export {
   type ContradictionLineageEntry,
   type NegativeResultLineageEntry,
   type VerificationLineageEntry,
+  type PackageResearchRunInput,
+  type PackageResearchRunResult,
+  type PackageArtifactEntry,
+  type PackageMemberRef,
+  type PackageOpsEvent,
+  type PackageRevisionEntry,
+  type PackagingProfile,
+  type ReproducibilityPackage,
+  type RevisionPolicy,
 } from "./operations/research-operations.js";
 
 export { claimFromClaimUnitPayload } from "./operations/claim-from-unit.js";
@@ -73,7 +87,7 @@ export {
 
 export interface ReferenceAppMarker {
   readonly packageId: "@sciros/reference-app";
-  readonly sprint: 25;
+  readonly sprint: 26;
   readonly duplicatesProcessorLogic: false;
   readonly researchSessionPersisted: false;
   readonly researchWorkspacePersisted: false;
@@ -83,7 +97,7 @@ export interface ReferenceAppMarker {
 
 export const referenceAppMarker: ReferenceAppMarker = {
   packageId: "@sciros/reference-app",
-  sprint: 25,
+  sprint: 26,
   duplicatesProcessorLogic: false,
   researchSessionPersisted: false,
   researchWorkspacePersisted: false,

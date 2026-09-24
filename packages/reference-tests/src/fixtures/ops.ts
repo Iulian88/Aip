@@ -10,6 +10,9 @@ import {
   contradictionFromContradictionUnitPayload,
   negativeResultFromNegativeResultUnitPayload,
   verificationFromVerificationUnitPayload,
+  REPRO_PACK_SCHEMA_ID,
+  revisionEntryFromEntity,
+  verifyReproducibilityPackage,
 } from "@sciros/reference-app";
 import {
   ClaimTransitionService,
@@ -4788,6 +4791,565 @@ export const opsFixtures: readonly ReferenceFixture[] = Object.freeze([
         expected_head_revision_id: "rev:initial",
         transition: verificationLeavePlanned("passed", "vte:ref-ops-161"),
       });
+    },
+  },
+  {
+    fixture_id: "REF-OPS-162",
+    title: "Minimal reproducibility package over Claim+Evidence heads",
+    scenario: "valid",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-162");
+      const cid = "claim:ref-ops-162";
+      const eid = "evidence:ref-ops-162";
+      await ops.registerClaimUnit(claimInput(cid));
+      await ops.registerEvidenceUnit(evidenceInput(eid));
+      const result = await ops.packageResearchRun({
+        package_id: "rpkg:ref-ops-162",
+        included_identities: [eid, cid],
+        revision_policy: "heads_only",
+        packaging_profile: "minimal",
+      });
+      check.equal("schema", result.package.schema_id, REPRO_PACK_SCHEMA_ID);
+      check.equal("profile", result.package.packaging_profile, "minimal");
+      check.equal("digest present", result.package.content_digest.length >= 64, true);
+      check.equal("identities sorted", result.package.included_identities.join(","), `${cid},${eid}`);
+      check.equal("entries", result.package.artifact_entries.length, 2);
+      check.equal("ops_events absent", result.package.ops_events === undefined, true);
+      verifyReproducibilityPackage(result.package);
+      check.ok("verify ok", true);
+    },
+  },
+  {
+    fixture_id: "REF-OPS-163",
+    title: "Double-run identical package SER (determinism)",
+    scenario: "valid",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      async function run() {
+        const ops = makeOps("persist-sess:ref-ops-163");
+        const cid = "claim:ref-ops-163";
+        const eid = "evidence:ref-ops-163";
+        await ops.registerClaimUnit(claimInput(cid));
+        await ops.registerEvidenceUnit(evidenceInput(eid));
+        const r = await ops.packageResearchRun({
+          package_id: "rpkg:ref-ops-163",
+          included_identities: [cid, eid],
+          revision_policy: "heads_only",
+          packaging_profile: "minimal",
+        });
+        return r.ser;
+      }
+      const a = await run();
+      const b = await run();
+      check.equal("double export identical", a, b);
+    },
+  },
+  {
+    fixture_id: "REF-OPS-164",
+    title: "content_digest verifies package integrity",
+    scenario: "valid",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-164");
+      await ops.registerClaimUnit(claimInput("claim:ref-ops-164"));
+      const r = await ops.packageResearchRun({
+        package_id: "rpkg:ref-ops-164",
+        included_identities: ["claim:ref-ops-164"],
+        revision_policy: "heads_only",
+        packaging_profile: "minimal",
+      });
+      check.equal("digest hex", /^[0-9a-f]{64}$/.test(r.package.content_digest), true);
+      verifyReproducibilityPackage(r.ser);
+      check.ok("ser verify", true);
+    },
+  },
+  {
+    fixture_id: "REF-OPS-165",
+    title: "Axis declaration present; ops_events absent in minimal",
+    scenario: "valid",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-165");
+      await ops.registerClaimUnit(claimInput("claim:ref-ops-165"));
+      const r = await ops.packageResearchRun({
+        package_id: "rpkg:ref-ops-165",
+        included_identities: ["claim:ref-ops-165"],
+        revision_policy: "heads_only",
+        packaging_profile: "minimal",
+      });
+      const axis = r.package.axis_declaration;
+      check.equal("sci provenance", axis.scientific_provenance, true);
+      check.equal("ops audit off", axis.operational_audit_history, false);
+      check.equal("source locator", axis.source_locator, true);
+      check.equal("persistence history", axis.persistence_history, true);
+      check.equal("revision lineage", axis.revision_lineage, true);
+      check.equal("session off", axis.research_session_context, false);
+      check.equal("workspace off", axis.research_workspace_context, false);
+      check.equal("no ops_events", r.package.ops_events === undefined, true);
+    },
+  },
+  {
+    fixture_id: "REF-OPS-166",
+    title: "with_ops_events includes only selected parents",
+    scenario: "event",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-166");
+      const cid = "claim:ref-ops-166";
+      const eid = "evidence:ref-ops-166";
+      await ops.registerClaimUnit(claimInput(cid));
+      await ops.registerEvidenceUnit(evidenceInput(eid));
+      await ops.transitionClaimStanding({
+        identity: cid,
+        revision_id: "rev:standing-supported-1",
+        expected_head_revision_id: "rev:initial",
+        append_event: true,
+        transition: {
+          to: "supported",
+          authority_agent: OPS_HUMAN,
+          reason: "clinical_boundary_ack REF-OPS-166",
+          decision_ref: "decision:ref-ops-166",
+          at: OPS_AT,
+          event_id: "ste:ref-ops-166",
+          supported_by: [eid],
+        },
+      });
+      const r = await ops.packageResearchRun({
+        package_id: "rpkg:ref-ops-166",
+        included_identities: [cid],
+        revision_policy: "heads_only",
+        packaging_profile: "with_ops_events",
+      });
+      check.equal("axis ops on", r.package.axis_declaration.operational_audit_history, true);
+      check.ok("ops_events present", Array.isArray(r.package.ops_events));
+      check.equal(
+        "only claim parents",
+        (r.package.ops_events ?? []).every((e) => e.parent_identity === cid),
+        true,
+      );
+      check.ok(
+        "has standing event",
+        (r.package.ops_events ?? []).some(
+          (e) => e.event_type === "ops.claim_standing_revision",
+        ),
+      );
+    },
+  },
+  {
+    fixture_id: "REF-OPS-167",
+    title: "full_lineage preserves predecessor_revision_id; revisions ASC",
+    scenario: "valid",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-167");
+      const cid = "claim:ref-ops-167";
+      await ops.registerClaimUnit(claimInput(cid));
+      await ops.transitionClaimStanding({
+        identity: cid,
+        revision_id: "rev:standing-supported-1",
+        expected_head_revision_id: "rev:initial",
+        transition: {
+          to: "supported",
+          authority_agent: OPS_HUMAN,
+          reason: "clinical_boundary_ack REF-OPS-167",
+          decision_ref: "decision:ref-ops-167",
+          at: OPS_AT,
+          event_id: "ste:ref-ops-167",
+          supported_by: ["evidence:ref-ops-167"],
+        },
+      });
+      const r = await ops.packageResearchRun({
+        package_id: "rpkg:ref-ops-167",
+        included_identities: [cid],
+        revision_policy: "full_lineage",
+        packaging_profile: "minimal",
+      });
+      const revs = r.package.artifact_entries[0]?.revisions ?? [];
+      check.equal("two revisions", revs.length, 2);
+      check.equal("asc first", revs[0]?.revision_id, "rev:initial");
+      check.equal("asc second", revs[1]?.revision_id, "rev:standing-supported-1");
+      check.equal(
+        "predecessor on successor",
+        revs[1]?.predecessor_revision_id,
+        "rev:initial",
+      );
+      check.equal(
+        "no predecessor on initial",
+        revs[0]?.predecessor_revision_id === undefined,
+        true,
+      );
+      check.equal(
+        "head pointer",
+        r.package.artifact_entries[0]?.head_revision_id,
+        "rev:standing-supported-1",
+      );
+    },
+  },
+  {
+    fixture_id: "REF-OPS-168",
+    title: "Missing identity packaging propagates NOT_FOUND",
+    scenario: "invalid",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "failure", failure_code: "NOT_FOUND" },
+    async execute() {
+      const ops = makeOps("persist-sess:ref-ops-168");
+      await ops.packageResearchRun({
+        package_id: "rpkg:ref-ops-168",
+        included_identities: ["claim:ref-ops-168-missing"],
+        revision_policy: "heads_only",
+        packaging_profile: "minimal",
+      });
+    },
+  },
+  {
+    fixture_id: "REF-OPS-169",
+    title: "Invalid package_id grammar → INVALID_COMMAND_STATE",
+    scenario: "invalid",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "failure", failure_code: "INVALID_COMMAND_STATE" },
+    async execute() {
+      const ops = makeOps("persist-sess:ref-ops-169");
+      await ops.registerClaimUnit(claimInput("claim:ref-ops-169"));
+      await ops.packageResearchRun({
+        package_id: "bad-id",
+        included_identities: ["claim:ref-ops-169"],
+        revision_policy: "heads_only",
+        packaging_profile: "minimal",
+      });
+    },
+  },
+  {
+    fixture_id: "REF-OPS-170",
+    title: "Non-intact revision entry rejected by packaging guard",
+    scenario: "invalid",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "failure", failure_code: "INVALID_COMMAND_STATE" },
+    execute() {
+      revisionEntryFromEntity(
+        {
+          storage_key: "cu:ClaimUnit:claim:x:rev:initial",
+          entity_kind: "CanonicalUnit",
+          identity: "claim:x",
+          content_version: "1.0.0",
+          intact: false,
+          payload: {},
+          references: [],
+          events: [],
+        },
+        "{}",
+      );
+    },
+  },
+  {
+    fixture_id: "REF-OPS-171",
+    title: "packageResearchRun does not create Persistence.Relationship",
+    scenario: "relationship",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-171");
+      const cid = "claim:ref-ops-171";
+      await ops.registerClaimUnit(claimInput(cid));
+      await ops.packageResearchRun({
+        package_id: "rpkg:ref-ops-171",
+        included_identities: [cid],
+        revision_policy: "heads_only",
+        packaging_profile: "minimal",
+      });
+      const listed = await ops.repository.list({
+        filter: { entity_kind: "Relationship" },
+      });
+      check.equal("no Relationship", listed.total, 0);
+    },
+  },
+  {
+    fixture_id: "REF-OPS-172",
+    title: "ResearchSnapshot shape unchanged after packaging",
+    scenario: "valid",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-172");
+      const cid = "claim:ref-ops-172";
+      await ops.registerClaimUnit(claimInput(cid));
+      const session = ops.openSession({
+        research_session_id: "research:session:ref-ops-172",
+      });
+      ops.registerMember(session, {
+        entity_kind: "CanonicalUnit",
+        identity: cid,
+        unit_kind: "ClaimUnit",
+      });
+      const before = await ops.snapshotView(session);
+      await ops.packageResearchRun({
+        package_id: "rpkg:ref-ops-172",
+        included_identities: [cid],
+        revision_policy: "heads_only",
+        packaging_profile: "minimal",
+        session,
+        include_organizational_context: true,
+      });
+      const after = await ops.snapshotView(session);
+      check.equal("session id", after.research_session_id, before.research_session_id);
+      check.equal("members len", after.member_refs.length, before.member_refs.length);
+      check.equal(
+        "keys",
+        Object.keys(after).sort().join(","),
+        "member_refs,persistence_snapshot,research_session_id",
+      );
+    },
+  },
+  {
+    fixture_id: "REF-OPS-173",
+    title: "Source locator projection without fetch",
+    scenario: "valid",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-173");
+      const eid = "evidence:ref-ops-173";
+      const vid = "verification:ref-ops-173";
+      await ops.registerEvidenceUnit(evidenceInput(eid));
+      await ops.registerVerificationUnit(
+        verificationInput(vid, {
+          artifact_ref: "artifact://ref-ops-173/protocol",
+        }),
+      );
+      const r = await ops.packageResearchRun({
+        package_id: "rpkg:ref-ops-173",
+        included_identities: [eid, vid],
+        revision_policy: "heads_only",
+        packaging_profile: "minimal",
+      });
+      check.equal(
+        "locators sorted unique",
+        r.package.source_locators.join("|"),
+        `artifact://ref-ops-173/protocol|lab://assay/${eid}`,
+      );
+      check.equal(
+        "no password leak",
+        r.ser.includes("password") || r.ser.includes("api_key"),
+        false,
+      );
+    },
+  },
+  {
+    fixture_id: "REF-OPS-174",
+    title: "Forbidden wall-clock absent on certified packaging path",
+    scenario: "valid",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-174");
+      await ops.registerClaimUnit(claimInput("claim:ref-ops-174"));
+      const r = await ops.packageResearchRun({
+        package_id: "rpkg:ref-ops-174",
+        included_identities: ["claim:ref-ops-174"],
+        revision_policy: "heads_only",
+        packaging_profile: "minimal",
+      });
+      check.equal("no generated_at", r.package.generated_at === undefined, true);
+      check.equal("marker sprint", referenceAppMarker.sprint, 26);
+      check.equal("no second journal", referenceAppMarker.secondEventJournal, false);
+    },
+  },
+  {
+    fixture_id: "REF-OPS-175",
+    title: "Organizational member_refs inclusion-filtered",
+    scenario: "valid",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-175");
+      const cid = "claim:ref-ops-175";
+      const eid = "evidence:ref-ops-175";
+      await ops.registerClaimUnit(claimInput(cid));
+      await ops.registerEvidenceUnit(evidenceInput(eid));
+      const session = ops.openSession({
+        research_session_id: "research:session:ref-ops-175",
+      });
+      ops.registerMember(session, {
+        entity_kind: "CanonicalUnit",
+        identity: cid,
+        unit_kind: "ClaimUnit",
+      });
+      ops.registerMember(session, {
+        entity_kind: "CanonicalUnit",
+        identity: eid,
+        unit_kind: "EvidenceUnit",
+      });
+      const r = await ops.packageResearchRun({
+        package_id: "rpkg:ref-ops-175",
+        included_identities: [cid],
+        revision_policy: "heads_only",
+        packaging_profile: "minimal",
+        session,
+        include_organizational_context: true,
+      });
+      check.equal("session_id", r.package.session_id, "research:session:ref-ops-175");
+      check.equal("members filtered", r.package.member_refs?.length, 1);
+      check.equal("only claim", r.package.member_refs?.[0]?.identity, cid);
+      check.equal("axis session", r.package.axis_declaration.research_session_context, true);
+    },
+  },
+  {
+    fixture_id: "REF-OPS-176",
+    title: "Empty included_identities → INVALID_COMMAND_STATE",
+    scenario: "invalid",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "failure", failure_code: "INVALID_COMMAND_STATE" },
+    async execute() {
+      const ops = makeOps("persist-sess:ref-ops-176");
+      await ops.packageResearchRun({
+        package_id: "rpkg:ref-ops-176",
+        included_identities: [],
+        revision_policy: "heads_only",
+        packaging_profile: "minimal",
+      });
+    },
+  },
+  {
+    fixture_id: "REF-OPS-177",
+    title: "verifyReproducibilityPackage rejects digest mismatch",
+    scenario: "invalid",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "failure", failure_code: "INVALID_COMMAND_STATE" },
+    async execute() {
+      const ops = makeOps("persist-sess:ref-ops-177");
+      await ops.registerClaimUnit(claimInput("claim:ref-ops-177"));
+      const r = await ops.packageResearchRun({
+        package_id: "rpkg:ref-ops-177",
+        included_identities: ["claim:ref-ops-177"],
+        revision_policy: "heads_only",
+        packaging_profile: "minimal",
+      });
+      const tampered = {
+        ...r.package,
+        content_digest: "0".repeat(64),
+      };
+      verifyReproducibilityPackage(tampered);
+    },
+  },
+  {
+    fixture_id: "REF-OPS-178",
+    title: "Export-only: verify does not restore Persistence entities",
+    scenario: "valid",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const opsA = makeOps("persist-sess:ref-ops-178-a");
+      const cid = "claim:ref-ops-178";
+      await opsA.registerClaimUnit(claimInput(cid));
+      const r = await opsA.packageResearchRun({
+        package_id: "rpkg:ref-ops-178",
+        included_identities: [cid],
+        revision_policy: "heads_only",
+        packaging_profile: "minimal",
+      });
+      verifyReproducibilityPackage(r.ser);
+      const opsB = makeOps("persist-sess:ref-ops-178-b");
+      let missing = false;
+      try {
+        await opsB.getClaimUnit(cid);
+      } catch (e) {
+        missing =
+          e instanceof Error &&
+          "code" in e &&
+          (e as { code: string }).code === "NOT_FOUND";
+      }
+      check.equal("other session empty", missing, true);
+      check.equal(
+        "no import API on ops",
+        typeof (opsB as { importResearchRun?: unknown }).importResearchRun,
+        "undefined",
+      );
+    },
+  },
+  {
+    fixture_id: "REF-OPS-179",
+    title: "Security: package excludes secrets / credentials patterns",
+    scenario: "valid",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-179");
+      await ops.registerEvidenceUnit(
+        evidenceInput("evidence:ref-ops-179", {
+          source: {
+            source_class: "laboratory",
+            source_locator: "lab://assay/evidence:ref-ops-179",
+            source_state: "declared",
+          },
+        }),
+      );
+      const r = await ops.packageResearchRun({
+        package_id: "rpkg:ref-ops-179",
+        included_identities: ["evidence:ref-ops-179"],
+        revision_policy: "heads_only",
+        packaging_profile: "minimal",
+      });
+      const forbidden = [
+        "password",
+        "api_key",
+        "access_token",
+        "private_key",
+        "Authorization:",
+        "process.env",
+      ];
+      for (const f of forbidden) {
+        check.equal(`no ${f}`, r.ser.toLowerCase().includes(f.toLowerCase()), false);
+      }
+    },
+  },
+  {
+    fixture_id: "REF-OPS-180",
+    title: "explicit_revisions policy selects listed revisions only",
+    scenario: "valid",
+    authorities: ["OPS-001"],
+    expectation: { outcome: "success" },
+    async execute(check) {
+      const ops = makeOps("persist-sess:ref-ops-180");
+      const cid = "claim:ref-ops-180";
+      await ops.registerClaimUnit(claimInput(cid));
+      await ops.transitionClaimStanding({
+        identity: cid,
+        revision_id: "rev:standing-supported-1",
+        expected_head_revision_id: "rev:initial",
+        transition: {
+          to: "supported",
+          authority_agent: OPS_HUMAN,
+          reason: "clinical_boundary_ack REF-OPS-180",
+          decision_ref: "decision:ref-ops-180",
+          at: OPS_AT,
+          event_id: "ste:ref-ops-180",
+          supported_by: ["evidence:ref-ops-180"],
+        },
+      });
+      const r = await ops.packageResearchRun({
+        package_id: "rpkg:ref-ops-180",
+        included_identities: [cid],
+        revision_policy: "explicit_revisions",
+        packaging_profile: "minimal",
+        explicit_revisions: [{ identity: cid, revision_id: "rev:initial" }],
+      });
+      check.equal("one rev", r.package.artifact_entries[0]?.revisions.length, 1);
+      check.equal(
+        "selected initial",
+        r.package.artifact_entries[0]?.revisions[0]?.revision_id,
+        "rev:initial",
+      );
+      check.equal(
+        "head still current",
+        r.package.artifact_entries[0]?.head_revision_id,
+        "rev:standing-supported-1",
+      );
     },
   },
 ]);

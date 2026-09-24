@@ -1,0 +1,8 @@
+PASS marker
+PASS packaging
+PASS determinism
+PASS integrity
+PASS lineage
+PASS relationship-boundary
+PASS corpus SCI=44 OPS=180 FULL=224
+PASS conformance
